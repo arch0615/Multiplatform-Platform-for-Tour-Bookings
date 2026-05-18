@@ -1,0 +1,6 @@
+@BajaTours.Api_HostAddress = http://localhost:5001
+
+GET {{BajaTours.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

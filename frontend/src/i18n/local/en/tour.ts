@@ -1,0 +1,67 @@
+export default {
+  backToTours: "Back to tours",
+  bestRated: "Best rated",
+  perPerson: "per person",
+  hours: "h",
+  reviews: "reviews",
+  from: "From",
+  bookNow: "Book now",
+  gallery: {
+    viewAll: "View all photos",
+  },
+  info: {
+    duration: "Duration",
+    language: "Language",
+    maxGuests: "Max guests",
+    category: "Category",
+    meetingPoint: "Meeting point",
+    included: "Included",
+    notIncluded: "Not included",
+    cancellation: "Cancellation policy",
+  },
+  itinerary: {
+    title: "Itinerary",
+    pickup: "Pickup",
+  },
+  description: {
+    title: "Description",
+  },
+  reviews: {
+    title: "Traveler reviews",
+    rating: "Rating",
+    of: "of",
+    basedOn: "Based on",
+    verified: "Verified",
+    writeReview: "Write a review",
+    seeAll: "See all reviews",
+  },
+  faq: {
+    title: "Frequently asked questions",
+  },
+  provider: {
+    title: "Operator",
+    verified: "Verified",
+    moreTours: "More tours from this operator",
+  },
+  similar: {
+    title: "Similar tours",
+  },
+  booking: {
+    title: "Book your experience",
+    date: "Date",
+    adults: "Adults",
+    children: "Children",
+    guests: "guests",
+    total: "Total",
+    selectDate: "Select a date",
+    instantConfirmation: "Instant confirmation",
+    freeCancellation: "Free cancellation up to 24h before",
+    mobileTicket: "Mobile ticket on your phone",
+    lowestPrice: "Best price guaranteed",
+  },
+  notFound: {
+    title: "Tour not found",
+    desc: "The tour you are looking for does not exist or is no longer available.",
+    cta: "Explore other tours",
+  },
+};
