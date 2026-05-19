@@ -7,7 +7,8 @@ public enum AuthError
     InvalidCredentials,
     InvalidRefreshToken,
     UserNotFound,
-    InvalidToken
+    InvalidToken,
+    AccountLocked
 }
 
 public class AuthException : Exception

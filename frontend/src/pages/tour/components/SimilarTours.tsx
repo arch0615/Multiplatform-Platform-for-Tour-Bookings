@@ -81,7 +81,7 @@ export default function SimilarTours({ currentSlug, category, priceLocale }: Sim
                       </div>
                       <span className="text-sm font-semibold text-charcoal">{tour.rating.toFixed(1)}</span>
                     </div>
-                    <span className="text-xs text-gray-400">({tour.reviewCount} {t("reviews")})</span>
+                    <span className="text-xs text-gray-400">({tour.reviewCount} {t("reviews.word")})</span>
                   </div>
 
                   <div className="flex items-center justify-between pt-3 border-t border-gray-100">

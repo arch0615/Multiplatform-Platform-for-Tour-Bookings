@@ -1,6 +1,8 @@
 using BajaTours.Api.Data;
+using BajaTours.Api.DTOs.Availability;
 using BajaTours.Api.DTOs.Tours;
 using BajaTours.Api.Domain.Enums;
+using BajaTours.Api.Services.Availability;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,8 +13,13 @@ namespace BajaTours.Api.Controllers;
 public class ToursController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IAvailabilityService _availability;
 
-    public ToursController(AppDbContext db) => _db = db;
+    public ToursController(AppDbContext db, IAvailabilityService availability)
+    {
+        _db = db;
+        _availability = availability;
+    }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<TourListItemDto>>> List(
@@ -81,6 +88,17 @@ public class ToursController : ControllerBase
             .ToListAsync(ct);
 
         return Ok(items);
+    }
+
+    [HttpGet("{slug}/availability")]
+    public async Task<ActionResult<IReadOnlyList<PublicAvailabilitySlotDto>>> Availability(
+        string slug, [FromQuery] string? month, CancellationToken ct)
+    {
+        try { return Ok(await _availability.GetPublicForSlugAsync(slug, month, ct)); }
+        catch (AvailabilityException ex) when (ex.Error == AvailabilityError.TourNotFound)
+        {
+            return NotFound(new { error = ex.Message });
+        }
     }
 
     [HttpGet("{slug}/reviews")]

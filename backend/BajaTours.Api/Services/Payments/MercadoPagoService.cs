@@ -30,6 +30,17 @@ public class MercadoPagoService : IMercadoPagoService
         var frontend = _options.FrontendBaseUrl.TrimEnd('/');
         var api = _options.ApiPublicBaseUrl.TrimEnd('/');
 
+        // Preferences expire 24h after creation. Stale checkout links are a common
+        // source of "I clicked Buy but it failed" support tickets — we'd rather force
+        // the user back through our flow to re-confirm dates + price.
+        var now = DateTime.UtcNow;
+        var expiresFrom = now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz");
+        var expiresTo = now.AddHours(24).ToString("yyyy-MM-ddTHH:mm:ss.fffzzz");
+
+        // Round to 2 decimals — MP rejects more than 2dp and floating-point drift
+        // can introduce trailing 9s when converting decimal → double directly.
+        var unitPrice = (double)Math.Round(booking.TotalPrice, 2, MidpointRounding.AwayFromZero);
+
         var payload = new
         {
             external_reference = booking.Id.ToString(),
@@ -42,7 +53,7 @@ public class MercadoPagoService : IMercadoPagoService
                     description = $"{tour.Location} · {tour.Duration}",
                     quantity = 1,
                     currency_id = booking.Currency,
-                    unit_price = (double)booking.TotalPrice
+                    unit_price = unitPrice
                 }
             },
             payer = new
@@ -59,7 +70,10 @@ public class MercadoPagoService : IMercadoPagoService
             auto_return = "approved",
             notification_url = $"{api}/api/payments/mercadopago/webhook",
             metadata = new { booking_id = booking.Id.ToString(), booking_reference = booking.Reference },
-            statement_descriptor = "BAJA TOURS"
+            statement_descriptor = "BAJA TOURS",
+            expires = true,
+            expiration_date_from = expiresFrom,
+            expiration_date_to = expiresTo
         };
 
         using var res = await _http.PostAsJsonAsync("/checkout/preferences", payload, ct);

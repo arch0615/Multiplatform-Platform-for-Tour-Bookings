@@ -3,11 +3,13 @@ using BajaTours.Api.DTOs.Auth;
 using BajaTours.Api.Services.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace BajaTours.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
+[EnableRateLimiting("auth")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _auth;
@@ -15,6 +17,7 @@ public class AuthController : ControllerBase
     public AuthController(IAuthService auth) => _auth = auth;
 
     [HttpPost("register")]
+    [EnableRateLimiting("auth-strict")]
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest req, CancellationToken ct)
     {
         try
@@ -29,6 +32,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register/provider")]
+    [EnableRateLimiting("auth-strict")]
     public async Task<ActionResult<AuthResponse>> RegisterProvider([FromBody] RegisterProviderRequest req, CancellationToken ct)
     {
         try
@@ -43,6 +47,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("auth-strict")]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest req, CancellationToken ct)
     {
         try
@@ -54,9 +59,15 @@ public class AuthController : ControllerBase
         {
             return Unauthorized(new { error = ex.Message });
         }
+        catch (AuthException ex) when (ex.Error == AuthError.AccountLocked)
+        {
+            // 429 communicates "you've been rate-limited" cleanly to the SPA
+            return StatusCode(StatusCodes.Status429TooManyRequests, new { error = ex.Message });
+        }
     }
 
     [HttpPost("refresh")]
+    [EnableRateLimiting("auth-strict")]
     public async Task<ActionResult<AuthResponse>> Refresh([FromBody] RefreshRequest req, CancellationToken ct)
     {
         try
@@ -79,6 +90,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("verify-email")]
+    [EnableRateLimiting("auth-strict")]
     public async Task<ActionResult<UserDto>> VerifyEmail([FromBody] VerifyEmailRequest req, CancellationToken ct)
     {
         try
@@ -93,6 +105,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("forgot-password")]
+    [EnableRateLimiting("auth-strict")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req, CancellationToken ct)
     {
         await _auth.RequestPasswordResetAsync(req.Email, ct);
@@ -101,6 +114,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("reset-password")]
+    [EnableRateLimiting("auth-strict")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req, CancellationToken ct)
     {
         try

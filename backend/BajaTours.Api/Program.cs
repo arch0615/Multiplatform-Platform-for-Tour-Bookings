@@ -4,24 +4,54 @@ using BajaTours.Api.Data;
 using BajaTours.Api.Domain.Entities;
 using BajaTours.Api.Services.Admin;
 using BajaTours.Api.Services.Auth;
+using BajaTours.Api.Services.Availability;
 using BajaTours.Api.Services.Bookings;
+using BajaTours.Api.Services.Coupons;
+using BajaTours.Api.Services.Favorites;
 using BajaTours.Api.Services.Files;
 using BajaTours.Api.Services.Notifications;
 using BajaTours.Api.Services.Payments;
 using BajaTours.Api.Services.ProviderTours;
+using BajaTours.Api.Services.Reviews;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Serilog;
+using Serilog.Events;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Structured logging: console (human-readable in dev, JSON in prod) + rolling file.
+builder.Host.UseSerilog((context, services, configuration) =>
+{
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext()
+        .Enrich.WithProperty("service", "baja-tours-api")
+        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+        .WriteTo.Console()
+        .WriteTo.File(
+            path: Path.Combine(context.HostingEnvironment.ContentRootPath, "logs", "baja-tours-.log"),
+            rollingInterval: RollingInterval.Day,
+            retainedFileCountLimit: 14,
+            shared: true,
+            outputTemplate: "{Timestamp:yyyy-MM-ddTHH:mm:ss.fffZ} [{Level:u3}] {SourceContext} {Message:lj} {Properties:j}{NewLine}{Exception}");
+});
 
 const string CorsPolicy = "BajaToursFrontend";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>("database", tags: new[] { "ready" });
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
@@ -49,6 +79,11 @@ builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IProviderToursService, ProviderToursService>();
 builder.Services.AddScoped<IProviderReportsService, ProviderReportsService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IReviewsService, ReviewsService>();
+builder.Services.AddScoped<ICouponsService, CouponsService>();
+builder.Services.AddScoped<IAvailabilityService, AvailabilityService>();
+builder.Services.AddScoped<IFavoritesService, FavoritesService>();
+builder.Services.AddHostedService<BookingCompletionService>();
 
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
 builder.Services.AddScoped<IFileStorage, LocalDiskFileStorage>();
@@ -100,6 +135,52 @@ builder.Services.AddCors(options =>
         .AllowCredentials());
 });
 
+// Rate limiting. Buckets sized at the protective floor — generous enough not to
+// hurt real users, tight enough to stop credential-stuffing and abuse loops.
+// Auth: by IP. Bookings: by authenticated user id (falls back to IP if anonymous).
+builder.Services.AddRateLimiter(rl =>
+{
+    rl.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    rl.AddPolicy("auth", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            }));
+
+    rl.AddPolicy("auth-strict", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            }));
+
+    rl.AddPolicy("bookings", httpContext =>
+    {
+        var sub = httpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                 ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                 ?? "anonymous";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: sub,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            });
+    });
+});
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -149,10 +230,56 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = storageSection.PublicUrlPath,
 });
 
+// Request logging: one line per HTTP request with method, path, status, elapsed.
+// Skip the noisy health endpoint — it's polled by load balancers.
+app.UseSerilogRequestLogging(opts =>
+{
+    opts.GetLevel = (httpContext, _, ex) =>
+    {
+        if (ex != null) return LogEventLevel.Error;
+        if (httpContext.Request.Path.StartsWithSegments("/health")) return LogEventLevel.Debug;
+        return httpContext.Response.StatusCode >= 500 ? LogEventLevel.Error
+             : httpContext.Response.StatusCode >= 400 ? LogEventLevel.Warning
+             : LogEventLevel.Information;
+    };
+    opts.EnrichDiagnosticContext = (diag, httpContext) =>
+    {
+        diag.Set("user_id", httpContext.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "anon");
+        diag.Set("ip", httpContext.Connection.RemoteIpAddress?.ToString() ?? "");
+    };
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
+app.UseMiddleware<BajaTours.Api.Middleware.AdminAuditMiddleware>();
 app.MapControllers();
 
+// Liveness: the process is up. Cheap, always-200 unless the process is dead.
 app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "baja-tours-api" }));
+
+// Readiness: dependencies are reachable. Used by load balancers / k8s to know
+// when to route traffic. Currently checks the SQL Server connection.
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = async (ctx, report) =>
+    {
+        ctx.Response.ContentType = "application/json";
+        var payload = new
+        {
+            status = report.Status.ToString().ToLowerInvariant(),
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString().ToLowerInvariant(),
+                duration_ms = (int)e.Value.Duration.TotalMilliseconds,
+                description = e.Value.Description,
+            }),
+            duration_ms = (int)report.TotalDuration.TotalMilliseconds,
+        };
+        await System.Text.Json.JsonSerializer.SerializeAsync(ctx.Response.Body, payload);
+    },
+});
 
 app.Run();

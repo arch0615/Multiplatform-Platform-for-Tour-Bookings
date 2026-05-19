@@ -76,7 +76,7 @@ export default function Reviews({ reviews, overallRating, reviewCount }: Reviews
                 ))}
               </div>
               <span className="text-xs text-gray-500 mt-1">
-                {t("reviews.basedOn")} {reviewCount} {t("reviews")}
+                {t("reviews.basedOn")} {reviewCount} {t("reviews.word")}
               </span>
             </div>
 

@@ -25,12 +25,15 @@ export default function HeroSection() {
     { label: t("destinations.caboSanLucas"), value: "cabo-san-lucas" },
   ];
 
+  // Values match the canonical names the /tours page uses to map to the backend enum.
+  // Do not change casing or accents without updating tours/page.tsx::categoryByName.
   const categories = [
-    { label: t("categories.adventure"), value: "aventura" },
-    { label: t("categories.cultural"), value: "cultural" },
-    { label: t("categories.gastronomic"), value: "gastronomico" },
-    { label: t("categories.transport"), value: "transporte" },
-    { label: t("categories.housing"), value: "hospedaje" },
+    { label: t("categories.adventure"), value: "Aventura" },
+    { label: t("categories.cultural"), value: "Cultural" },
+    { label: t("categories.gastronomic"), value: "Gastronómico" },
+    { label: t("categories.transport"), value: "Transporte" },
+    { label: t("categories.housing"), value: "Renta de Casas" },
+    { label: t("categories.fishing", { defaultValue: "Pesca" }), value: "Pesca" },
   ];
 
   useEffect(() => {

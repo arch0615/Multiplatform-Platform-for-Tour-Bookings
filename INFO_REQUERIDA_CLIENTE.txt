@@ -1,0 +1,397 @@
+================================================================================
+BAJA TOURS — INFORMACIÓN Y CUENTAS REQUERIDAS DEL CLIENTE
+================================================================================
+Fecha:    2026-05-19
+Para:     Yurico (Baja Tours)
+De:       Equipo de desarrollo
+
+Hola Yurico,
+
+Para completar el despliegue de la plataforma a producción y entregar el
+demo funcional para tus pruebas comerciales, necesitamos que nos compartas
+los siguientes datos, cuentas y decisiones. Algunos requieren tiempo de
+trámite (sobre todo WhatsApp Business), por eso te paso esta lista lo más
+pronto posible para que avancemos en paralelo.
+
+He marcado cada bloque con su prioridad:
+
+  [BLOQUEANTE]   sin esto no podemos lanzar
+  [IMPORTANTE]   sin esto la plataforma funciona pero le faltan piezas clave
+  [DIFERIBLE]    se puede agregar después del lanzamiento
+
+Y con un tiempo estimado de espera de tu lado.
+
+CÓMO ENVIAR CREDENCIALES:
+  Por favor no las pongas en un correo plano. Opciones seguras:
+  - Un mensaje cifrado por WhatsApp (texto fijo, no captura de pantalla)
+  - Un servicio como https://onetimesecret.com (un solo uso, se autodestruye)
+  - Compartir un documento en Google Drive con permisos restringidos a mi correo
+
+  Si prefieres otra opción, dime y la coordinamos.
+
+
+================================================================================
+1. PASARELAS DE PAGO
+================================================================================
+
+[1.1] MERCADO PAGO — sandbox (pruebas) + producción     [BLOQUEANTE]   1 día
+  Por qué: es la pasarela principal acordada en el proyecto. Sin esto
+           no se pueden cobrar reservas en pesos mexicanos.
+
+  Lo que necesito de ti:
+    1. Que crees (o me des acceso a) una cuenta de Mercado Pago Empresa
+       a nombre del negocio (con su RFC).
+       Registro: https://www.mercadopago.com.mx/developers
+    2. Desde "Tus integraciones" → crea una aplicación para Baja Tours
+       y compárteme TRES valores:
+         - Access Token de PRUEBAS (TEST-…)
+         - Public Key de PRUEBAS (TEST-…)
+         - Webhook Secret de PRUEBAS
+    3. Una vez probado, otros tres equivalentes para PRODUCCIÓN
+       (los crearemos juntos cuando estés listo para cobrar real).
+    4. Confirma la cuenta bancaria donde quieres recibir los depósitos
+       (CLABE + banco + titular). Mercado Pago la pide al activar
+       cobros en producción.
+
+[1.2] PAYPAL                                            [IMPORTANTE]   1 día
+  Por qué: era parte de la fase 2 original. Atrae turistas extranjeros
+           que prefieren PayPal por confianza/familiaridad.
+  Si decides dejarlo fuera del lanzamiento, está OK, lo agregamos después.
+
+  Lo que necesito de ti (si lo incluimos):
+    1. Cuenta PayPal Business: https://www.paypal.com/mx/business
+    2. Desde developer.paypal.com crea una "REST API app":
+         - Client ID (sandbox)
+         - Client Secret (sandbox)
+    3. Mismos dos valores en producción cuando estés listo.
+
+
+================================================================================
+2. NOTIFICACIONES — CORREO Y WHATSAPP
+================================================================================
+
+[2.1] DOMINIO Y CORREO                                  [BLOQUEANTE]   2-3 días
+  Por qué: necesitamos un dominio (ej. bajatours.mx) tanto para el sitio
+           como para el remitente de los correos transaccionales
+           (confirmación de reserva al usuario y al proveedor).
+
+  Lo que necesito de ti:
+    1. Confirmar el dominio comercial. Si ya lo tienes registrado,
+       compárteme acceso al panel del registrador (Hostgator, GoDaddy,
+       Cloudflare, etc.) o agrégame como usuario para configurar DNS.
+    2. Si no lo has comprado aún, te recomiendo Cloudflare Registrar
+       (precios casi al costo) o Hover. Una vez registrado, lo conectamos.
+    3. Decidir el correo del remitente:
+         - Sugiero: reservaciones@bajatours.mx  (o no-reply@bajatours.mx)
+         - También: soporte@bajatours.mx        (para respuestas humanas)
+
+[2.2] PROVEEDOR DE CORREO (SendGrid o Resend)           [BLOQUEANTE]   1 día
+  Por qué: para enviar correos transaccionales con buena entregabilidad.
+           Sin esto, los correos terminan en spam.
+
+  Recomendación: Resend (https://resend.com) — más simple, gratis hasta
+                 3,000 correos/mes. SendGrid también funciona bien.
+
+  Lo que necesito de ti:
+    1. Crear cuenta en Resend con el correo del negocio.
+    2. Pasarme el API key (empieza con "re_…").
+    3. Yo configuro los registros DNS (SPF, DKIM, DMARC) en el dominio
+       una vez que tenga acceso al registrador (punto 2.1).
+
+[2.3] WHATSAPP BUSINESS (TWILIO)                        [IMPORTANTE]   2-3 SEMANAS
+  Por qué: en México mucha gente responde más rápido por WhatsApp que
+           por correo. El plan es enviar confirmaciones de reserva y
+           recordatorios 24h antes del tour.
+
+  ATENCIÓN: la aprobación de WhatsApp Business toma 2-3 semanas, por
+            eso te pido iniciar el trámite YA, aunque la integración
+            técnica venga después.
+
+  Lo que necesito de ti:
+    1. Crear cuenta Twilio: https://www.twilio.com/try-twilio
+    2. Desde la consola, ir a "Messaging → Try it Out → WhatsApp" y
+       solicitar el sandbox (lo activan en minutos para pruebas).
+    3. En paralelo, iniciar la verificación de WABA (WhatsApp Business
+       Account) para producción. Necesitarán:
+         - Datos del negocio (nombre legal, RFC, dirección)
+         - Un número de teléfono que NO esté usado actualmente con WhatsApp
+           regular (Twilio te ayuda a portar uno, o compras uno nuevo)
+         - Verificación de Facebook Business Manager
+    4. Una vez aprobado, comparte: Account SID, Auth Token, número WABA.
+
+
+================================================================================
+3. INFRAESTRUCTURA Y BASE DE DATOS
+================================================================================
+
+[3.1] SERVIDOR DE PRODUCCIÓN (VPS Linux)                [BLOQUEANTE]   1-2 días
+  Por qué: dónde correrá la API, la base de datos y los archivos del frontend.
+
+  Recomendación: DigitalOcean droplet de 4 GB RAM / 2 vCPU / 80 GB SSD
+                 (~$24 USD/mes). Suficiente para los primeros meses.
+                 Alternativas: Hetzner (más barato en Europa), AWS Lightsail.
+
+  Lo que necesito de ti:
+    1. Decidir el proveedor y crear la cuenta.
+    2. Compartirme acceso SSH (o crearme un usuario en el VPS) para
+       hacer el despliegue inicial.
+    3. Confirmar región: te recomiendo us-east o us-west para baja
+       latencia desde México.
+
+[3.2] SQL SERVER — DECISIÓN DE LICENCIA                 [BLOQUEANTE]   1 día
+  Por qué: en desarrollo uso la edición Developer (gratis). En producción
+           Microsoft requiere una licencia paga, o cambiamos a una
+           alternativa equivalente.
+
+  Opciones (de menor a mayor costo):
+    A) Azure SQL Database (Basic tier): ~$5 USD/mes para empezar.
+       Recomendado — Microsoft administra todo (backups, actualizaciones).
+    B) SQL Server Express en el VPS: gratis pero limitado (10 GB DB).
+       Suficiente para los primeros 1-2 años a este volumen.
+    C) Migrar a PostgreSQL (gratis, sin límites): mejor a largo plazo,
+       requiere ~1 día de mi tiempo para reescribir 3-4 archivos.
+       Yo me inclino por esto si presupuesto es prioridad.
+    D) SQL Server Standard en el VPS: ~$3,700 USD/año en licencia.
+
+  Lo que necesito de ti:
+    Decidir entre A, B, C o D. Si necesitas que te recomiende algo concreto
+    para tu caso, dime el rango de presupuesto y te aterrizo la opción.
+
+[3.3] ALMACENAMIENTO DE IMÁGENES                        [IMPORTANTE]   1 día
+  Por qué: las fotos de los tours, los documentos del proveedor (INE,
+           comprobante, CURP) y los avatares de usuarios necesitan vivir
+           en algún lado que no sea el disco del VPS (por costo, respaldo
+           y velocidad).
+
+  Recomendación: Cloudflare R2 — compatible con S3, sin cargos por
+                 ancho de banda salida, ~$0.015/GB/mes de almacenamiento.
+
+  Alternativas: AWS S3 + CloudFront, o Backblaze B2.
+
+  Lo que necesito de ti:
+    1. Crear cuenta Cloudflare: https://dash.cloudflare.com/sign-up
+    2. Crear un bucket R2 llamado "baja-tours-media"
+    3. Generar un API token y compartírmelo (Access Key ID + Secret)
+
+
+================================================================================
+4. CUMPLIMIENTO LEGAL Y FISCAL (MÉXICO)
+================================================================================
+
+[4.1] CFDI 4.0 — FACTURACIÓN ELECTRÓNICA                [IMPORTANTE]   1 semana
+  Por qué: en México, si vendes a clientes que piden factura, debes
+           emitir CFDI 4.0 a través de un PAC (Proveedor Autorizado de
+           Certificación). No se puede "hacer a mano".
+
+  Pregunta clave: ¿Tu negocio venderá con factura o solo con recibo
+                  simple? Si es lo segundo (B2C puro), podemos posponer
+                  este punto. Si emite facturas (B2B o por petición),
+                  hay que integrarlo antes del lanzamiento.
+
+  Opciones de PAC: Facturama, SW Sapien, Finkok. Todas tienen API REST.
+                   Costo: ~$0.50 MXN por CFDI emitido.
+
+  Lo que necesito de ti (si lo incluimos):
+    1. Elegir PAC y crear cuenta.
+    2. Compartirme el API token.
+    3. Pasarme el .cer y .key del Sello Digital del SAT del negocio.
+
+[4.2] TÉRMINOS Y CONDICIONES + AVISO DE PRIVACIDAD     [BLOQUEANTE]   3-5 días
+  Por qué: requeridos por ley mexicana (LFPDPPP para el aviso de
+           privacidad, PROFECO para los términos comerciales). El sitio
+           ya tiene plantillas tipo "lorem ipsum" — hay que reemplazarlas
+           con tu texto real.
+
+  Lo que necesito de ti:
+    1. Tu aviso de privacidad final (puedes adaptarlo de uno existente
+       o usar un generador gratis y revisarlo con un abogado).
+    2. Términos y condiciones, que cubran al menos:
+         - Política de cancelación (cuánto tiempo antes, qué % se reembolsa)
+         - Responsabilidad por el contenido del proveedor
+         - Manejo de comisiones y disputas
+    3. Si necesitas, te paso plantillas en español que puedes adaptar.
+
+[4.3] DATOS FISCALES DEL NEGOCIO                        [BLOQUEANTE]   1 día
+  Lo que necesito de ti:
+    - Razón social (nombre legal completo)
+    - RFC del negocio
+    - Régimen fiscal (RIF, RESICO, Persona Moral, etc.)
+    - Dirección fiscal completa
+    - Estos van en los correos de confirmación y en pie de página del sitio.
+
+
+================================================================================
+5. CONTENIDO DEL CATÁLOGO
+================================================================================
+
+[5.1] PROVEEDORES INICIALES                             [BLOQUEANTE]   1-2 semanas
+  Por qué: hoy el sistema tiene 5 proveedores ficticios para pruebas.
+           Para el lanzamiento necesitamos los reales.
+
+  Lo que necesito de ti para CADA proveedor:
+    - Nombre comercial del negocio
+    - Correo del dueño/operador (será el usuario para entrar al panel)
+    - Teléfono de contacto
+    - Ubicación principal (La Paz / Los Cabos / Cabo San Lucas)
+    - RFC del proveedor
+    - Comisión negociada (15% por default; me dices si difiere)
+    - Una breve descripción (2-3 líneas) que se muestra en el detalle
+      de sus tours
+    - Logo o foto del operador (opcional, 400×400 px)
+    - Documentos para verificación: INE, comprobante de domicilio, CURP
+      (se suben al panel del proveedor — no me los mandes a mí)
+
+[5.2] TOURS / SERVICIOS                                 [BLOQUEANTE]   1-2 semanas
+  Cada proveedor podrá subir sus propios tours desde el panel, pero
+  conviene que tú apruebes los primeros 15-20 para arrancar con catálogo
+  visible.
+
+  Para cada tour, el proveedor llena:
+    - Título
+    - Categoría (Aventura / Cultural / Gastronómico / Transporte /
+      Renta de casas / Pesca)
+    - Ubicación
+    - Descripción completa
+    - Itinerario por bloques de hora
+    - Punto de encuentro exacto
+    - Duración
+    - Idiomas (es / en)
+    - Precio adulto y precio niño (en MXN, antes de tu comisión)
+    - Capacidad máxima por salida
+    - 3-5 fotos por tour (mínimo 1200 px de ancho, formato JPG)
+
+  Lo que necesito de TI:
+    Solo confirma que el flujo funciona como esperas, y que tienes los
+    proveedores listos para subir su contenido. Si prefieres que yo cargue
+    los primeros 15-20 como kick-off, mándame los datos en un Sheet de
+    Google y lo automatizo.
+
+
+================================================================================
+6. POLÍTICAS Y DECISIONES OPERATIVAS
+================================================================================
+
+Estas son decisiones de negocio que necesito que confirmes para configurar
+el sistema correctamente:
+
+[6.1] POLÍTICA DE CANCELACIÓN
+  Hoy el sistema permite cancelar siempre que la fecha del tour no haya
+  pasado, con reembolso completo automático. Confirma:
+    - ¿Hay ventana mínima? (ej. cancelar al menos 24h o 48h antes)
+    - ¿Reembolso siempre 100% o se queda un % por cargos administrativos?
+
+[6.2] COMISIÓN POR DEFECTO
+  Hoy 15% por proveedor (negociable individualmente). Confirma si te
+  parece bien o ajustamos.
+
+[6.3] MONEDAS
+  Actualmente solo MXN. ¿Quieres mostrar precios también en USD para
+  turistas extranjeros? El cobro siempre será en MXN (limitación de
+  Mercado Pago), pero podemos mostrar el equivalente.
+
+[6.4] CONTACTO DE SOPORTE
+  El botón flotante de WhatsApp en el sitio hoy apunta a un número
+  ficticio. Necesito el número real que atenderá clientes:
+    - Número WhatsApp para soporte: _______________
+    - Correo de soporte: _______________
+    - Horario de atención: _______________
+
+[6.5] CUENTA ADMIN DE LA PLATAFORMA
+  Tu cuenta para administrar todo (aprobar proveedores, revisar reservas,
+  configurar comisiones). Necesito:
+    - Correo: _______________
+    - Nombre completo: _______________
+    - (La contraseña la pones tú al recibir el correo de bienvenida)
+
+
+================================================================================
+7. MARCA Y APARIENCIA
+================================================================================
+
+[7.1] LOGOTIPO Y FAVICON                                [IMPORTANTE]   2-3 días
+  Hoy el sitio usa un ícono genérico de velero. Para verse profesional:
+    - Logo en SVG (formato vectorial)
+    - Logo en PNG con fondo transparente (versión clara y oscura)
+    - Favicon (32×32 px)
+    - Imagen Open Graph para redes sociales (1200×630 px)
+
+  Si no tienes diseñador, te puedo recomendar uno o usar Canva juntos.
+
+[7.2] COLORES Y TIPOGRAFÍA                              [DIFERIBLE]
+  Los colores actuales (ocean blue, coral, turquoise, sand) funcionan
+  para un sitio turístico pero podemos ajustarlos a tu identidad de marca
+  si ya la tienes definida.
+
+
+================================================================================
+8. (OPCIONAL) LOGIN SOCIAL
+================================================================================
+
+[8.1] GOOGLE Y FACEBOOK LOGIN                           [DIFERIBLE]   2-3 días
+  El sitio tiene los botones "Continuar con Google" y "Continuar con
+  Facebook" pero hoy están desactivados. Activarlos requiere:
+    - Google: crear proyecto en Google Cloud Console y obtener
+      OAuth Client ID + Secret
+    - Facebook: crear app en Meta for Developers, App ID + Secret
+
+  No es bloqueante. La mayoría de usuarios se registran con correo+contraseña.
+
+
+================================================================================
+9. (OPCIONAL) MONITOREO E IMPORTACIÓN DE RESEÑAS
+================================================================================
+
+[9.1] IMPORTACIÓN AUTOMÁTICA DE RESEÑAS DE GOOGLE       [DIFERIBLE]
+  Como acordamos, en el lanzamiento los tours muestran reseñas de Google
+  para que el catálogo no se vea vacío, y poco a poco se reemplazan por
+  reseñas de clientes reales que compraron por la plataforma.
+
+  La importación automática (vs. manual) requiere una API Key de
+  Google Places: https://developers.google.com/maps/documentation/places
+  Costo: ~$17 USD por cada 1,000 consultas. Para 20 tours actualizados
+  semanalmente serían pocos dólares al mes.
+
+  Para arrancar, ya tenemos un puñado de reseñas seed escritas a mano
+  con autores realistas. Es suficiente para el demo. Después decidimos
+  si automatizamos.
+
+[9.2] UPTIME MONITORING                                 [DIFERIBLE]
+  Para que te avise por correo si el sitio se cae. UptimeRobot es gratis
+  hasta 50 monitores: https://uptimerobot.com
+
+  Solo necesitas crear la cuenta y pasarme tu correo de alerta. Yo lo
+  configuro.
+
+
+================================================================================
+RESUMEN — LO QUE NECESITO PARA EMPEZAR EL DESPLIEGUE
+================================================================================
+
+En orden de bloqueo, lo mínimo para llegar al primer demo público es:
+
+   1. Datos fiscales del negocio          (sección 4.3)
+   2. Cuenta admin tuya                   (sección 6.5)
+   3. Dominio + correo del negocio        (sección 2.1)
+   4. Política de cancelación + comisión  (secciones 6.1 + 6.2)
+   5. Mercado Pago sandbox + producción   (sección 1.1)
+   6. Resend API key                      (sección 2.2)
+   7. VPS + decisión de base de datos     (secciones 3.1 + 3.2)
+   8. Bucket Cloudflare R2                (sección 3.3)
+   9. Logo + favicon                      (sección 7.1)
+   10. Términos + aviso de privacidad     (sección 4.2)
+
+Con eso entregamos el demo funcional en aproximadamente 5-7 días hábiles
+después de que tenga los datos en mano.
+
+Lo de WhatsApp Business (sección 2.3) inícialo YA aunque la integración
+venga después — los 2-3 semanas de aprobación corren en paralelo.
+
+Lo de proveedores y catálogo (sección 5) lo coordinamos en paralelo a
+todo lo demás; mientras el sistema esté listo, puedes invitar a los
+proveedores cuando los tengas confirmados.
+
+
+Quedo atento, cualquier cosa que necesites aclarar me dices.
+
+Saludos,
+[Tu nombre]

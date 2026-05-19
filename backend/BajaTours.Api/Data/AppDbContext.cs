@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<AuthToken> AuthTokens => Set<AuthToken>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -177,6 +178,18 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(t => t.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AuditLog>(e =>
+        {
+            e.HasIndex(a => a.At);
+            e.HasIndex(a => a.ActorUserId);
+            e.Property(a => a.Method).HasMaxLength(8).IsRequired();
+            e.Property(a => a.Path).HasMaxLength(512).IsRequired();
+            e.Property(a => a.RouteValues).HasMaxLength(1024);
+            e.Property(a => a.RequestBody).HasMaxLength(2048);
+            e.Property(a => a.ActorEmail).HasMaxLength(256);
+            e.Property(a => a.Ip).HasMaxLength(64);
         });
     }
 }

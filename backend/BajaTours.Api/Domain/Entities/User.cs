@@ -13,6 +13,8 @@ public class User
     public UserRole Role { get; set; } = UserRole.Client;
     public string PreferredLanguage { get; set; } = "es";
     public bool EmailVerified { get; set; }
+    public int FailedLoginCount { get; set; }
+    public DateTime? LockedUntil { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

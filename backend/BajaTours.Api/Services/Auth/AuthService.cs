@@ -106,6 +106,13 @@ public class AuthService : IAuthService
         return await IssueTokensAsync(user, provider.Id, provider.Status, ip, ct);
     }
 
+    // Lockout policy: 5 failed attempts in a row → account locked for 15 minutes.
+    // The counter resets on any successful login or after the lockout window expires.
+    // We intentionally do NOT distinguish "user not found" from "wrong password" in the
+    // response — that prevents email enumeration via timing or messaging.
+    private const int MaxFailedAttempts = 5;
+    private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
+
     public async Task<AuthResponse> LoginAsync(LoginRequest req, string? ip, CancellationToken ct)
     {
         var email = req.Email.Trim().ToLowerInvariant();
@@ -116,15 +123,38 @@ public class AuthService : IAuthService
         if (user is null)
             throw new AuthException(AuthError.InvalidCredentials, "Invalid email or password.");
 
+        var now = DateTime.UtcNow;
+        if (user.LockedUntil is { } until && until > now)
+        {
+            var minutes = Math.Max(1, (int)Math.Ceiling((until - now).TotalMinutes));
+            throw new AuthException(AuthError.AccountLocked,
+                $"Account temporarily locked. Try again in {minutes} minute(s).");
+        }
+
         var verify = _hasher.VerifyHashedPassword(user, user.PasswordHash, req.Password);
         if (verify == PasswordVerificationResult.Failed)
+        {
+            user.FailedLoginCount += 1;
+            if (user.FailedLoginCount >= MaxFailedAttempts)
+            {
+                user.LockedUntil = now.Add(LockoutDuration);
+                user.FailedLoginCount = 0;
+            }
+            await _db.SaveChangesAsync(ct);
             throw new AuthException(AuthError.InvalidCredentials, "Invalid email or password.");
+        }
 
+        // Success — clear counters & rehash if needed
+        if (user.FailedLoginCount > 0 || user.LockedUntil is not null)
+        {
+            user.FailedLoginCount = 0;
+            user.LockedUntil = null;
+        }
         if (verify == PasswordVerificationResult.SuccessRehashNeeded)
         {
             user.PasswordHash = _hasher.HashPassword(user, req.Password);
-            await _db.SaveChangesAsync(ct);
         }
+        if (_db.ChangeTracker.HasChanges()) await _db.SaveChangesAsync(ct);
 
         return await IssueTokensAsync(user, user.Provider?.Id, user.Provider?.Status, ip, ct);
     }

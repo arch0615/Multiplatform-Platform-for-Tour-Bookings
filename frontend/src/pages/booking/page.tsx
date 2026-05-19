@@ -3,8 +3,11 @@ import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import { ApiError } from "@/lib/api";
 import { createBooking } from "@/lib/bookings";
+import { validateCoupon, type ValidateCouponResult } from "@/lib/coupons";
 import { getTourBySlug, type TourDetail } from "@/lib/tours";
 import { useAuth } from "@/contexts/AuthContext";
+import AvailabilityPicker from "./components/AvailabilityPicker";
+import { type PublicAvailabilitySlot } from "@/lib/availability";
 
 export default function BookingPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -35,6 +38,17 @@ export default function BookingPage() {
   const [apiError, setApiError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
 
+  // Availability: if the provider has configured per-date capacity, use the
+  // visual picker; otherwise fall back to the plain date input.
+  const [usePicker, setUsePicker] = useState(true);
+  const [selectedSlot, setSelectedSlot] = useState<PublicAvailabilitySlot | null>(null);
+
+  // Coupons
+  const [couponCode, setCouponCode] = useState("");
+  const [coupon, setCoupon] = useState<ValidateCouponResult | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+
   useEffect(() => {
     if (user) {
       const parts = user.fullName.trim().split(/\s+/);
@@ -60,10 +74,53 @@ export default function BookingPage() {
     return () => { cancelled = true; };
   }, [slug, t]);
 
-  const adultsTotal = tour ? adults * tour.priceAdult : 0;
+  const effectivePriceAdult = selectedSlot?.priceOverride ?? tour?.priceAdult ?? 0;
+  const adultsTotal = tour ? adults * effectivePriceAdult : 0;
   const childrenTotal = tour ? children * (tour.priceChild ?? 0) : 0;
   const subtotal = adultsTotal + childrenTotal;
-  const total = subtotal;
+  const discount = coupon?.valid ? coupon.appliedDiscount : 0;
+  const total = Math.max(0, subtotal - discount);
+
+  // Re-validate the coupon when the subtotal changes (e.g. guest count edited
+  // after applying) so we never send MP an outdated discount.
+  useEffect(() => {
+    if (!coupon?.valid) return;
+    let cancelled = false;
+    validateCoupon(coupon.code, subtotal)
+      .then((r) => { if (!cancelled) setCoupon(r); })
+      .catch(() => { /* silent — checkout submit re-validates on the server side */ });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtotal]);
+
+  const handleApplyCoupon = async () => {
+    const trimmed = couponCode.trim();
+    if (!trimmed) return;
+    setCouponError(null);
+    setValidatingCoupon(true);
+    try {
+      const res = await validateCoupon(trimmed, subtotal);
+      if (res.valid) {
+        setCoupon(res);
+      } else {
+        setCoupon(null);
+        setCouponError(t(`booking.couponReason.${res.reason ?? "INVALID"}`, {
+          defaultValue: t("booking.couponInvalid", { defaultValue: "Cupón no válido." }),
+        }));
+      }
+    } catch (err) {
+      setCoupon(null);
+      setCouponError(t("booking.couponError", { defaultValue: "No pudimos validar el cupón." }));
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCoupon(null);
+    setCouponCode("");
+    setCouponError(null);
+  };
 
   const validateStep1 = () => {
     const e: Record<string, string> = {};
@@ -106,6 +163,7 @@ export default function BookingPage() {
         contactEmail: email.trim(),
         contactPhone: phone.trim() || undefined,
         notes: requests.trim() || undefined,
+        couponCode: coupon?.valid ? coupon.code : undefined,
       });
       window.location.href = res.initPoint;
     } catch (err) {
@@ -204,28 +262,54 @@ export default function BookingPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {usePicker && tour ? (
                     <div>
                       <label className="block text-sm font-medium text-charcoal mb-1.5">{t("booking.date")}</label>
-                      <input
-                        type="date"
+                      <AvailabilityPicker
+                        slug={tour.slug}
+                        guests={Math.max(1, adults + children)}
                         value={date}
-                        min={new Date().toISOString().slice(0, 10)}
-                        onChange={(e) => setDate(e.target.value)}
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-ocean"
+                        locale={priceLocale}
+                        onChange={(d, slot) => {
+                          setDate(d);
+                          setSelectedSlot(slot);
+                          if (slot?.startTime) setTime(slot.startTime.slice(0, 5));
+                        }}
+                        onEmpty={() => setUsePicker(false)}
                       />
                       {errors.date && <p className="text-xs text-coral mt-1">{errors.date}</p>}
+                      {selectedSlot && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          {date} {selectedSlot.startTime ? `· ${selectedSlot.startTime.slice(0, 5)}` : ""}
+                          {" — "}
+                          {selectedSlot.remaining} lugares disponibles
+                        </p>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-charcoal mb-1.5">{t("booking.time")}</label>
-                      <input
-                        type="time"
-                        value={time}
-                        onChange={(e) => setTime(e.target.value)}
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-ocean"
-                      />
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-charcoal mb-1.5">{t("booking.date")}</label>
+                        <input
+                          type="date"
+                          value={date}
+                          min={new Date().toISOString().slice(0, 10)}
+                          onChange={(e) => setDate(e.target.value)}
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-ocean"
+                        />
+                        {errors.date && <p className="text-xs text-coral mt-1">{errors.date}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-charcoal mb-1.5">{t("booking.time")}</label>
+                        <input
+                          type="time"
+                          value={time}
+                          onChange={(e) => setTime(e.target.value)}
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-ocean"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-medium text-charcoal mb-3">{t("booking.guests")}</label>
@@ -396,6 +480,53 @@ export default function BookingPage() {
                     </div>
                   </div>
 
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                      {t("booking.couponLabel", { defaultValue: "Código de descuento" })}
+                    </label>
+                    {coupon?.valid ? (
+                      <div className="flex items-center justify-between gap-3 p-3 border border-ocean/30 bg-ocean/5 rounded-xl">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-ocean truncate">{coupon.code}</p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {coupon.description ?? t("booking.couponApplied", { defaultValue: "Cupón aplicado" })}
+                            {" — "}
+                            -${coupon.appliedDiscount.toLocaleString(priceLocale)} MXN
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveCoupon}
+                          className="shrink-0 text-xs font-medium text-coral hover:underline"
+                        >
+                          {t("booking.couponRemove", { defaultValue: "Quitar" })}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={couponCode}
+                          onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(null); }}
+                          placeholder={t("booking.couponPlaceholder", { defaultValue: "Ej. BAJA10" })}
+                          className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-ocean uppercase"
+                          maxLength={32}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyCoupon}
+                          disabled={!couponCode.trim() || validatingCoupon}
+                          className="px-4 py-2 text-sm font-medium border border-ocean text-ocean rounded-lg hover:bg-ocean/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {validatingCoupon ? "…" : t("booking.couponApply", { defaultValue: "Aplicar" })}
+                        </button>
+                      </div>
+                    )}
+                    {couponError && (
+                      <p className="text-xs text-coral mt-1.5">{couponError}</p>
+                    )}
+                  </div>
+
                   <div className="p-4 bg-gray-50 rounded-xl space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">{tour.title}</span>
@@ -405,6 +536,12 @@ export default function BookingPage() {
                       <span className="text-gray-500">{adults + children} {t("booking.guests")}</span>
                       <span className="font-medium text-charcoal">{time}</span>
                     </div>
+                    {discount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">{t("booking.discount", { defaultValue: "Descuento" })} ({coupon?.code})</span>
+                        <span className="font-medium text-coral">−${discount.toLocaleString(priceLocale)}</span>
+                      </div>
+                    )}
                     <div className="pt-2 border-t border-gray-200 flex justify-between">
                       <span className="font-bold text-charcoal">{t("booking.total")}</span>
                       <span className="font-bold text-ocean">${total.toLocaleString(priceLocale)} MXN</span>
@@ -472,6 +609,12 @@ export default function BookingPage() {
                     <span className="text-gray-500">{t("booking.subtotal")}</span>
                     <span className="font-medium">${subtotal.toLocaleString(priceLocale)}</span>
                   </div>
+                  {discount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-coral">{t("booking.discount", { defaultValue: "Descuento" })} ({coupon?.code})</span>
+                      <span className="font-medium text-coral">−${discount.toLocaleString(priceLocale)}</span>
+                    </div>
+                  )}
                   <div className="pt-3 border-t border-gray-100 flex justify-between">
                     <span className="font-bold text-charcoal">{t("booking.total")}</span>
                     <span className="font-bold text-ocean text-lg">${total.toLocaleString(priceLocale)} MXN</span>

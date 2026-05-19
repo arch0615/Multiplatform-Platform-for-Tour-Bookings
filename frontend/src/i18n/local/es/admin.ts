@@ -44,7 +44,7 @@ export default {
   "admin.settingsDesc": "Personaliza la plataforma",
   "admin.platformName": "Nombre de la plataforma",
   "admin.contactEmail": "Correo de contacto",
-  "admin.commissionRate": "Comisión por reserva",
+  "admin.bookingCommission": "Comisión por reserva",
   "admin.commissionDesc": "Porcentaje que retiene la plataforma de cada reserva",
   "admin.currency": "Moneda principal",
   "admin.defaultLanguage": "Idioma por defecto",

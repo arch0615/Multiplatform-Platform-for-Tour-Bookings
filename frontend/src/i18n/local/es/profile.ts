@@ -110,7 +110,6 @@ export default {
   "profile.providerContact": "Contacto del proveedor",
   "profile.adults": "Adultos",
   "profile.children": "Niños",
-  "profile.guests": "viajeros",
   "profile.cancelReason": "Motivo de cancelación",
   "profile.cancelComment": "Comentarios (opcional)",
   "profile.cancelCommentPlaceholder": "Cuéntanos más sobre por qué cancelas...",

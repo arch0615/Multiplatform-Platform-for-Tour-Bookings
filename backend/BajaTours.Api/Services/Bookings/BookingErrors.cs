@@ -9,7 +9,8 @@ public enum BookingError
     BookingNotFound,
     NotAuthorized,
     NotCancellable,
-    RefundFailed
+    RefundFailed,
+    CouponNotApplicable
 }
 
 public class BookingException : Exception

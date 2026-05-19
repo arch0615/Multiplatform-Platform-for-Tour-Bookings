@@ -3,7 +3,6 @@ export default {
   bestRated: "Mejor valorado",
   perPerson: "por persona",
   hours: "h",
-  reviews: "reseñas",
   from: "Desde",
   bookNow: "Reservar ahora",
   gallery: {
@@ -27,6 +26,7 @@ export default {
     title: "Descripción",
   },
   reviews: {
+    word: "reseñas",
     title: "Opiniones de viajeros",
     rating: "Valoración",
     of: "de",

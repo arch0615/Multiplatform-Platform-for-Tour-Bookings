@@ -4,6 +4,8 @@ using BajaTours.Api.Data;
 using BajaTours.Api.Domain.Entities;
 using BajaTours.Api.Domain.Enums;
 using BajaTours.Api.DTOs.Bookings;
+using BajaTours.Api.Services.Availability;
+using BajaTours.Api.Services.Coupons;
 using BajaTours.Api.Services.Notifications;
 using BajaTours.Api.Services.Payments;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +29,8 @@ public class BookingService : IBookingService
     private readonly AppDbContext _db;
     private readonly IMercadoPagoService _mp;
     private readonly IEmailService _email;
+    private readonly ICouponsService _coupons;
+    private readonly IAvailabilityService _availability;
     private readonly PaymentsOptions _payments;
     private readonly ILogger<BookingService> _logger;
 
@@ -34,12 +38,16 @@ public class BookingService : IBookingService
         AppDbContext db,
         IMercadoPagoService mp,
         IEmailService email,
+        ICouponsService coupons,
+        IAvailabilityService availability,
         IOptions<PaymentsOptions> payments,
         ILogger<BookingService> logger)
     {
         _db = db;
         _mp = mp;
         _email = email;
+        _coupons = coupons;
+        _availability = availability;
         _payments = payments.Value;
         _logger = logger;
     }
@@ -61,11 +69,49 @@ public class BookingService : IBookingService
         if (req.Adults + req.Children > tour.MaxGuests)
             throw new BookingException(BookingError.InvalidGuestCount, $"Maximum {tour.MaxGuests} guests per booking.");
 
-        var adultsTotal = req.Adults * tour.PriceAdult;
+        // Availability gate: if the provider has configured per-date availability for this
+        // tour, the booking must land on a date with remaining capacity. Atomic reservation
+        // (Booked + guests <= Capacity) happens at SQL level. Tours without any configured
+        // availability fall through to legacy MaxGuests-only behavior — opt-in per provider.
+        var guests = req.Adults + req.Children;
+        TourAvailability? reservedSlot = null;
+        var hasConfig = await _availability.AnyConfiguredAsync(tour.Id, ct);
+        if (hasConfig)
+        {
+            reservedSlot = await _availability.TryReserveAsync(tour.Id, req.Date, guests, ct);
+            if (reservedSlot is null)
+                throw new BookingException(BookingError.InvalidGuestCount,
+                    "Esa fecha no tiene cupo disponible para este tour.");
+        }
+
+        // Honor per-date price override without mutating the tracked Tour entity
+        var effectivePriceAdult = reservedSlot?.PriceOverride ?? tour.PriceAdult;
+        var adultsTotal = req.Adults * effectivePriceAdult;
         var childrenTotal = req.Children * (tour.PriceChild ?? 0m);
         var subtotal = adultsTotal + childrenTotal;
-        var discount = 0m;
-        // Coupon application is a separate iteration; field reserved for future use.
+
+        // Resolve coupon (if any) BEFORE saving so we apply the correct discount.
+        // The atomic Redeemed++ happens after the booking row exists, to avoid
+        // burning a redemption on a booking we couldn't save.
+        decimal discount = 0m;
+        string? appliedCouponCode = null;
+        Guid? couponIdToRedeem = null;
+        if (!string.IsNullOrWhiteSpace(req.CouponCode))
+        {
+            CouponEvaluation eval;
+            try
+            {
+                eval = await _coupons.EvaluateForBookingAsync(req.CouponCode!, subtotal, ct);
+            }
+            catch (CouponException ex)
+            {
+                throw new BookingException(BookingError.CouponNotApplicable, ex.Message);
+            }
+            discount = eval.AppliedDiscount;
+            appliedCouponCode = eval.Coupon.Code;
+            couponIdToRedeem = eval.Coupon.Id;
+        }
+
         var total = Math.Max(0m, subtotal - discount);
         var commission = Math.Round(total * tour.Provider.CommissionRate, 2);
 
@@ -83,7 +129,7 @@ public class BookingService : IBookingService
             CommissionAmount = commission,
             TotalPrice = total,
             Currency = "MXN",
-            CouponCode = string.IsNullOrWhiteSpace(req.CouponCode) ? null : req.CouponCode.Trim(),
+            CouponCode = appliedCouponCode,
             ContactName = req.ContactName.Trim(),
             ContactEmail = req.ContactEmail.Trim().ToLowerInvariant(),
             ContactPhone = req.ContactPhone,
@@ -93,6 +139,16 @@ public class BookingService : IBookingService
 
         _db.Bookings.Add(booking);
         await _db.SaveChangesAsync(ct);
+
+        // Atomic redemption — gates re-checked at the SQL level. If it lost the race,
+        // we keep the booking but log the discrepancy; the customer keeps the discount
+        // they were promised. (Operationally rare; alternative is to roll back the booking.)
+        if (couponIdToRedeem is { } cid)
+        {
+            var redeemed = await _coupons.TryRedeemAsync(cid, ct);
+            if (!redeemed)
+                _logger.LogWarning("Coupon {Code} could not be redeemed for booking {BookingId} — race or expiry", appliedCouponCode, booking.Id);
+        }
 
         var preference = await _mp.CreatePreferenceAsync(booking, tour, ct);
 
@@ -191,6 +247,9 @@ public class BookingService : IBookingService
         booking.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
+
+        // Free the seat back into the per-date pool (no-op if the date had no availability row)
+        await _availability.ReleaseAsync(booking.TourId, booking.Date, booking.Adults + booking.Children, ct);
 
         await SendBookingCancelledEmailsAsync(booking.Id, refunded: shouldRefund, ct);
 

@@ -1,0 +1,254 @@
+================================================================================
+BAJA TOURS — MERCADO PAGO INTEGRATION RUNBOOK
+================================================================================
+Fecha:  2026-05-19
+Para:   Equipo de desarrollo + Yurico
+
+Este documento explica cómo activar el flujo real de Mercado Pago (sandbox y
+producción), desde la creación de la cuenta hasta el primer cobro de prueba.
+También documenta la estructura técnica de la integración para futura
+mantenibilidad.
+
+
+================================================================================
+1. RESUMEN TÉCNICO
+================================================================================
+
+La plataforma usa el flujo de **Checkout Pro** de Mercado Pago:
+  - Front-end manda los datos de reserva al API de Baja Tours
+  - API crea una `preference` en MP via POST /checkout/preferences
+  - API responde al front-end con `init_point` (la URL del checkout MP)
+  - Front-end hace `window.location.href = initPoint`
+  - Usuario paga en el sitio de Mercado Pago
+  - MP devuelve al usuario al sitio (`back_urls.success` etc.)
+  - MP envía un webhook a /api/payments/mercadopago/webhook
+  - API consulta /v1/payments/{id} para confirmar el estado
+  - Booking pasa de Pending → Confirmed (o Cancelled si rechazado)
+
+Endpoints MP usados (todos contra `https://api.mercadopago.com`):
+  - POST /checkout/preferences   → crear el checkout
+  - GET  /v1/payments/{id}       → consultar estado del pago
+  - POST /v1/payments/{id}/refunds → reembolso al cancelar
+
+Archivos relevantes en el código:
+  - backend/BajaTours.Api/Services/Payments/MercadoPagoService.cs
+  - backend/BajaTours.Api/Services/Payments/MercadoPagoWebhookValidator.cs
+  - backend/BajaTours.Api/Controllers/PaymentsController.cs
+
+
+================================================================================
+2. MODOS DE OPERACIÓN
+================================================================================
+
+El sistema soporta dos modos, controlados por `Payments:Mode` en appsettings:
+
+  Modo "Mock" (default en desarrollo)
+    - Usa MockMercadoPagoService — no llama a MP en absoluto
+    - El "checkout" es una URL local en /api/payments/mercadopago/mock-checkout
+    - Aprobación automática inmediata; útil para desarrollar todo el flujo
+      sin necesidad de credenciales MP
+
+  Modo "MercadoPago"
+    - Usa el servicio real (HttpClient contra api.mercadopago.com)
+    - Requiere las 3 credenciales abajo
+    - Se debe configurar antes de hacer despliegues de prueba con usuarios reales
+
+
+================================================================================
+3. CREDENCIALES REQUERIDAS DEL CLIENTE
+================================================================================
+
+Yurico necesita crear/proveer:
+
+  [PRUEBAS / sandbox]
+    - AccessToken de pruebas       (formato: TEST-1234567890-abc...)
+    - PublicKey de pruebas          (formato: TEST-abcdef...)
+    - WebhookSecret de pruebas      (32+ chars, hash hex)
+
+  [PRODUCCIÓN]
+    - AccessToken de producción     (formato: APP_USR-...)
+    - PublicKey de producción       (formato: APP_USR-...)
+    - WebhookSecret de producción
+    - CLABE bancaria + banco        (para recibir depósitos)
+
+Cómo obtenerlos:
+  1. Crear cuenta empresa en https://www.mercadopago.com.mx/developers
+  2. Ir a "Tus integraciones" → "Crear aplicación"
+  3. Tipo: "Pagos en línea (Checkout Pro)"
+  4. En la nueva app, sección "Credenciales":
+     - "Credenciales de prueba" → copia AccessToken + PublicKey
+  5. En "Webhooks" → "Configurar notificaciones":
+     - URL: https://api.bajatours.mx/api/payments/mercadopago/webhook
+     - Eventos: "Pagos" únicamente
+     - Cuando guardes, MP mostrará el `Secret` — guardarlo de inmediato
+       (solo se muestra una vez)
+  6. Para producción: repetir el proceso seleccionando "Credenciales de
+     producción" — pero esto requiere haber aprobado al menos un pago
+     de prueba primero
+
+Cómo enviar las credenciales:
+  - NO por correo plano
+  - Recomendado: https://onetimesecret.com (un solo uso, se autodestruye)
+
+
+================================================================================
+4. CONFIGURACIÓN
+================================================================================
+
+Una vez recibidas las credenciales, ponerlas en `dotnet user-secrets` en
+desarrollo (NO commit) o en variables de entorno en producción:
+
+  Modo sandbox (en el VPS de desarrollo / pruebas):
+    Payments:Mode = "MercadoPago"
+    Payments:FrontendBaseUrl = "https://staging.bajatours.mx"
+    Payments:ApiPublicBaseUrl = "https://api-staging.bajatours.mx"
+    Payments:MercadoPago:AccessToken = "TEST-..."
+    Payments:MercadoPago:PublicKey = "TEST-..."
+    Payments:MercadoPago:WebhookSecret = "..."
+
+  Modo producción:
+    Igual pero con las credenciales APP_USR-... y los dominios reales.
+
+En producción se cargan via env vars:
+    export Payments__Mode=MercadoPago
+    export Payments__MercadoPago__AccessToken="APP_USR-..."
+    etc.
+
+Atención: los archivos appsettings.json NO deben contener secretos reales.
+Si los ves ahí en algún PR, marcarlo como bloqueador.
+
+
+================================================================================
+5. PROBANDO EN SANDBOX
+================================================================================
+
+Una vez configurado, validar antes de lanzar a producción:
+
+  Tarjetas de prueba (siempre en modo TEST):
+    Visa aprobada        — 4509 9535 6623 3704 / CVV 123 / venc 11/30
+    Visa rechazada       — 4013 5406 8274 6260 / CVV 123 / venc 11/30
+    Mastercard pendiente — 5031 7557 3453 0604 / CVV 123 / venc 11/30
+    Nombre del titular   — APRO  (para aprobar) o OTHE (para rechazar)
+    CVV                  — cualquier 3 dígitos
+    Vencimiento          — cualquier futuro (formato MM/YY)
+
+  Métodos alternativos disponibles en sandbox:
+    OXXO (deja la reserva en Pending hasta que el usuario pague en tienda)
+    SPEI (transferencia interbancaria)
+
+  Flujo de prueba completo (cliente → reserva → cobro → confirmación):
+    1. Crear cliente desde el front: http://staging.bajatours.mx/registro/cliente
+    2. Elegir un tour, fechas, capacidad
+    3. Llegar al paso 3 (pago) → "Pagar con Mercado Pago"
+    4. Confirmar que redirige a checkout pro (URL inicia con `mercadopago.com`)
+    5. Usar tarjeta de prueba "aprobada"
+    6. MP redirige a /booking/success
+    7. Verificar en /perfil/reservas que el booking quedó Confirmed
+    8. Verificar en logs API que el webhook fue recibido y procesado:
+       grep "MP webhook" logs/baja-tours-*.log
+
+
+================================================================================
+6. WEBHOOK — REQUISITO HTTPS + URL PÚBLICA
+================================================================================
+
+MP envía webhooks via HTTP POST a la URL configurada en su panel.
+La URL DEBE cumplir:
+
+  - HTTPS obligatorio en producción (sandbox es más permisivo)
+  - Dominio resolvible públicamente (no localhost, no IP privada)
+  - Responder con 2xx en < 22 segundos o MP marca el envío como fallido
+    y reintenta (usa exponential backoff hasta 1 día)
+
+Para desarrollo local:
+  - Usar ngrok o Cloudflare Tunnel para exponer localhost
+    Ejemplo: `ngrok http 5080` → te da una URL https://abc.ngrok.io
+  - Configurar en MP: notification_url = https://abc.ngrok.io/api/payments/mercadopago/webhook
+  - Cambiar Payments:ApiPublicBaseUrl al mismo dominio
+
+Validación de firma:
+  - El endpoint /webhook valida el header `x-signature` contra el
+    `Payments:MercadoPago:WebhookSecret`
+  - Si el secret no está configurado, el webhook se acepta con un warning
+    en logs ("WebhookSecret not configured") — útil en mock-dev, peligroso
+    en producción. Antes de lanzar a producción confirmar que el secret
+    está set.
+
+Reintentos:
+  - MP reintenta 5 veces (1s, 5s, 30s, 2m, 5m) si el endpoint no devuelve 2xx.
+  - Nuestra lógica es idempotente: re-procesar el mismo payment_id produce
+    el mismo estado final (booking.Status = Confirmed / Cancelled).
+
+
+================================================================================
+7. CHECKLIST PRE-PRODUCCIÓN
+================================================================================
+
+Antes del primer cobro real:
+
+  [ ] Cuenta MP empresa creada con el RFC del negocio (no de Yurico personal)
+  [ ] CLABE bancaria conectada al panel MP para recibir depósitos
+  [ ] Aplicación "Pagos en línea" creada en https://www.mercadopago.com.mx/developers
+  [ ] Credenciales de producción copiadas (APP_USR-...)
+  [ ] Webhook configurado con URL real HTTPS + secret guardado
+  [ ] Payments:Mode = "MercadoPago" en producción
+  [ ] Pago de prueba aprobado en sandbox extremo-a-extremo
+  [ ] Reembolso de prueba aprobado en sandbox (cancelar booking Confirmed)
+  [ ] Verificar que appsettings.Production.json NO tiene literales de credenciales
+  [ ] Logs muestran "MP webhook signature verified" (no "not configured")
+  [ ] Dashboard MP muestra el primer cobro real correctamente con
+      external_reference = el GUID del booking
+
+
+================================================================================
+8. CASOS DE ERROR Y SOPORTE
+================================================================================
+
+Errores que el código maneja con gracia:
+
+  - MP devuelve 4xx/5xx al crear preferencia
+    → API responde 500 al front; usuario ve "Error procesando el pago"
+    → Log: "MP preference creation failed: {Status} {Body}"
+
+  - Webhook con firma inválida
+    → API responde 401, MP reintentará
+    → Log: "MP webhook rejected: HMAC mismatch"
+
+  - Webhook llega antes de que el booking exista (race condition)
+    → API responde 200 (no podemos rechazar a MP) pero loguea warning
+    → Log: "MP webhook references unknown booking"
+
+  - Reembolso falla
+    → API devuelve 502 al cliente que canceló
+    → DB queda inalterada — el cliente puede reintentar
+    → Log: "Mercado Pago refund failed"
+
+Si hay un cobro fantasma (MP cobró pero la reserva no quedó Confirmed):
+  1. Buscar en MP dashboard el `external_reference` (UUID del booking)
+  2. Buscar en logs: `grep <bookingId> logs/baja-tours-*.log`
+  3. Si el webhook nunca llegó, reenviar manualmente desde el panel MP
+     "Notificaciones → Reenviar"
+  4. Si llegó pero falló, ver el StatusCode en la línea del webhook
+
+
+================================================================================
+9. LIMITES Y NOTAS OPERATIVAS
+================================================================================
+
+  - Solo MXN soportado actualmente (MP México no admite multi-currency
+    en una misma cuenta)
+  - Preferencias expiran a las 24h de creadas (configurable en
+    MercadoPagoService.cs si Yurico prefiere otra ventana)
+  - MP no envía notificaciones cuando un pago expira sin completarse;
+    el booking queda en Pending. Esos bookings deberían limpiarse via
+    una tarea periódica futura (no implementado todavía).
+  - Comisiones MP en México (cifras a verificar con MP actuales en 2026):
+    * Tarjeta de crédito: ~3.49% + IVA
+    * Tarjeta de débito: ~1.99% + IVA
+    * OXXO: ~3.49% + IVA + comisión fija
+    * SPEI: ~0.99% + IVA
+  - Marketplace fees: el código tiene un campo `Booking.CommissionAmount`
+    que captura el % de comisión de Baja Tours al proveedor. Esa NO se
+    envía a MP — es interna. Si en el futuro se quiere usar el modelo
+    marketplace de MP (split payment), hay que cambiar la preference
+    para usar `marketplace_fee` + `collector_id`.

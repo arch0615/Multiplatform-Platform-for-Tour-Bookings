@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { TourListItem } from "@/lib/tours";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFavorites } from "@/contexts/FavoritesContext";
 
 interface TourCardProps {
   tour: TourListItem;
@@ -12,11 +15,31 @@ const placeholderImage =
 
 export default function TourCard({ tour, priceLocale }: TourCardProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
+  const { isFavorite, toggle } = useFavorites();
+  const [busy, setBusy] = useState(false);
+  const favorited = isFavorite(tour.id);
   const languages = tour.languages
     .split(",")
     .map((l) => l.trim().toUpperCase())
     .filter(Boolean);
   const isBestRated = tour.rating >= 4.8 && tour.reviewCount >= 2;
+
+  const handleFavorite = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      navigate("/login", { state: { from: location.pathname + location.search } });
+      return;
+    }
+    if (busy) return;
+    setBusy(true);
+    try { await toggle(tour.id); }
+    catch { /* optimistic update already rolled back */ }
+    finally { setBusy(false); }
+  };
 
   return (
     <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:-translate-y-1 transition-all duration-300">
@@ -34,10 +57,15 @@ export default function TourCard({ tour, priceLocale }: TourCardProps) {
         )}
         <button
           type="button"
-          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 hover:bg-white text-charcoal hover:text-coral transition-colors"
+          onClick={handleFavorite}
+          disabled={busy}
+          className={`absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 hover:bg-white transition-colors disabled:opacity-50 ${
+            favorited ? "text-coral" : "text-charcoal hover:text-coral"
+          }`}
           aria-label={t("card.save")}
+          aria-pressed={favorited}
         >
-          <i className="ri-heart-line" />
+          <i className={favorited ? "ri-heart-fill" : "ri-heart-line"} />
         </button>
       </div>
 

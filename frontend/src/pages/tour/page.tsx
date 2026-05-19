@@ -147,7 +147,7 @@ export default function TourDetailPage() {
                 <i className="ri-star-fill text-xs" />
               </div>
               <span className="font-semibold text-charcoal">{tour.rating.toFixed(1)}</span>
-              <span>({tour.reviewCount} {t("reviews")})</span>
+              <span>({tour.reviewCount} {t("reviews.word")})</span>
             </div>
             <span className="hidden sm:inline">·</span>
             <div className="flex items-center gap-1">

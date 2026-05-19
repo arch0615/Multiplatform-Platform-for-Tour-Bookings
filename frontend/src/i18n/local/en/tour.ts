@@ -3,7 +3,6 @@ export default {
   bestRated: "Best rated",
   perPerson: "per person",
   hours: "h",
-  reviews: "reviews",
   from: "From",
   bookNow: "Book now",
   gallery: {
@@ -27,6 +26,7 @@ export default {
     title: "Description",
   },
   reviews: {
+    word: "reviews",
     title: "Traveler reviews",
     rating: "Rating",
     of: "of",

@@ -1,17 +1,46 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import ClientSidebar from "../components/ClientSidebar";
-import { tours } from "@/mocks/tours";
+import { ApiError } from "@/lib/api";
+import { listMyFavorites, type Favorite } from "@/lib/favorites";
+import { useFavorites } from "@/contexts/FavoritesContext";
 
-const mockFavorites = [tours[0], tours[6], tours[10], tours[3], tours[8]];
+const placeholderImage =
+  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80&auto=format&fit=crop";
 
 export default function PerfilFavoritosPage() {
-  const { t } = useTranslation("profile");
-  const [favorites, setFavorites] = useState(mockFavorites);
+  const { t, i18n } = useTranslation("profile");
+  const priceLocale = i18n.language === "es" ? "es-MX" : "en-US";
+  const { toggle, refresh: refreshIds } = useFavorites();
 
-  const removeFavorite = (id: number) => {
-    setFavorites((prev) => prev.filter((f) => f.id !== id));
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true); setError(null);
+    try { setFavorites(await listMyFavorites()); }
+    catch (err) {
+      setError(err instanceof ApiError ? err.message : t("profile.loadError", { defaultValue: "No pudimos cargar tus favoritos." }));
+      setFavorites([]);
+    } finally { setLoading(false); }
+  }, [t]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const handleRemove = async (tourId: string) => {
+    setBusyId(tourId);
+    try {
+      await toggle(tourId); // current state is "favorited" → toggle removes
+      setFavorites((prev) => prev.filter((f) => f.tourId !== tourId));
+    } catch {
+      // ignore, optimistic-rollback handled in toggle
+      refreshIds();
+    } finally {
+      setBusyId(null);
+    }
   };
 
   return (
@@ -23,7 +52,18 @@ export default function PerfilFavoritosPage() {
             <div className="flex-1 min-w-0">
               <div className="bg-white rounded-2xl border border-gray-100 p-5 md:p-6">
                 <h1 className="text-lg font-bold text-charcoal mb-4">{t("profile.myFavorites")}</h1>
-                {favorites.length === 0 ? (
+
+                {error && (
+                  <div className="bg-coral/10 border border-coral/30 text-coral text-sm px-4 py-3 rounded-xl mb-4">{error}</div>
+                )}
+
+                {loading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="h-56 bg-gray-100 rounded-xl animate-pulse" />
+                    ))}
+                  </div>
+                ) : favorites.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="w-16 h-16 flex items-center justify-center mx-auto mb-4 text-gray-300">
                       <i className="ri-heart-3-line text-3xl" />
@@ -36,12 +76,19 @@ export default function PerfilFavoritosPage() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {favorites.map((tour) => (
-                      <div key={tour.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden group">
+                      <div key={tour.tourId} className="bg-white rounded-xl border border-gray-100 overflow-hidden group">
                         <div className="relative">
-                          <img src={tour.image} alt={tour.title} className="w-full h-40 object-cover" />
+                          <img
+                            src={tour.coverImageUrl ?? placeholderImage}
+                            alt={tour.title}
+                            loading="lazy"
+                            className="w-full h-40 object-cover"
+                          />
                           <button
-                            onClick={() => removeFavorite(tour.id)}
-                            className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 text-coral hover:bg-coral hover:text-white transition-colors"
+                            onClick={() => handleRemove(tour.tourId)}
+                            disabled={busyId === tour.tourId}
+                            aria-label="Quitar de favoritos"
+                            className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 text-coral hover:bg-coral hover:text-white transition-colors disabled:opacity-50"
                           >
                             <i className="ri-heart-3-fill" />
                           </button>
@@ -52,8 +99,13 @@ export default function PerfilFavoritosPage() {
                             <i className="ri-map-pin-line" /> {tour.location}
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-bold text-ocean">${tour.price.toLocaleString()} <span className="text-xs font-normal text-gray-400">MXN</span></span>
-                            <Link to={`/tours/${tour.slug}`} className="text-xs font-medium text-ocean hover:underline">{t("profile.viewDetails")}</Link>
+                            <span className="text-sm font-bold text-ocean">
+                              ${tour.priceAdult.toLocaleString(priceLocale)}{" "}
+                              <span className="text-xs font-normal text-gray-400">MXN</span>
+                            </span>
+                            <Link to={`/tours/${tour.slug}`} className="text-xs font-medium text-ocean hover:underline">
+                              {t("profile.viewDetails")}
+                            </Link>
                           </div>
                         </div>
                       </div>

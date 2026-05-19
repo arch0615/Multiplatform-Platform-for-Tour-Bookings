@@ -44,7 +44,7 @@ export default {
   "admin.settingsDesc": "Configure the platform",
   "admin.platformName": "Platform name",
   "admin.contactEmail": "Contact email",
-  "admin.commissionRate": "Booking commission",
+  "admin.bookingCommission": "Booking commission",
   "admin.commissionDesc": "Platform fee percentage taken from each booking",
   "admin.currency": "Primary currency",
   "admin.defaultLanguage": "Default language",
