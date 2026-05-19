@@ -23,6 +23,9 @@ public class Booking
     public string? ContactPhone { get; set; }
     public string? Notes { get; set; }
     public BookingStatus Status { get; set; } = BookingStatus.Pending;
+    public DateTime? CancelledAt { get; set; }
+    public string? CancelReason { get; set; }
+    public string? CancelComment { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

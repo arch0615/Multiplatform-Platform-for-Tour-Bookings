@@ -1,31 +1,60 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
 import ProviderSidebar from "../../provider/components/ProviderSidebar";
+import { ApiError } from "@/lib/api";
+import { BookingStatus } from "@/lib/bookings";
+import { listProviderBookings, type ProviderBooking } from "@/lib/providerReports";
 
-const bookings = [
-  { id: "BK-104", customer: "Ana López", tour: "Snorkel con tiburón ballena", date: "2026-05-20", guests: 3, total: 5400, status: "confirmed" },
-  { id: "BK-103", customer: "Carlos Ruiz", tour: "Paseo en kayak bioluminiscente", date: "2026-05-18", guests: 2, total: 3000, status: "confirmed" },
-  { id: "BK-102", customer: "Familia Smith", tour: "Avistamiento de ballenas", date: "2026-05-15", guests: 4, total: 9600, status: "completed" },
-  { id: "BK-101", customer: "Laura Martínez", tour: "Tour gastronómico La Paz", date: "2026-05-12", guests: 2, total: 2400, status: "completed" },
-];
+type Filter = "all" | "pending" | "confirmed" | "completed" | "cancelled";
+
+function statusToFilter(s: BookingStatus): Filter {
+  if (s === BookingStatus.Pending) return "pending";
+  if (s === BookingStatus.Confirmed) return "confirmed";
+  if (s === BookingStatus.Completed) return "completed";
+  return "cancelled";
+}
+
+function statusColor(s: BookingStatus): string {
+  if (s === BookingStatus.Confirmed) return "bg-ocean/10 text-ocean";
+  if (s === BookingStatus.Pending) return "bg-sand/60 text-charcoal";
+  if (s === BookingStatus.Completed) return "bg-gray-100 text-gray-600";
+  return "bg-coral/10 text-coral";
+}
 
 export default function ProveedorReservasPage() {
-  const { t } = useTranslation("provider");
-  const [filter, setFilter] = useState<"all" | "confirmed" | "completed" | "cancelled">("all");
+  const { t, i18n } = useTranslation("provider");
+  const priceLocale = i18n.language === "es" ? "es-MX" : "en-US";
 
-  const filtered = filter === "all" ? bookings : bookings.filter((b) => b.status === filter);
+  const [bookings, setBookings] = useState<ProviderBooking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>("all");
 
-  const statusColor = (s: string) => {
-    if (s === "confirmed") return "bg-ocean/10 text-ocean";
-    if (s === "completed") return "bg-gray-100 text-gray-600";
-    return "bg-coral/10 text-coral";
-  };
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    listProviderBookings()
+      .then((items) => { if (!cancelled) setBookings(items); })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof ApiError ? err.message : t("provider.loadError", { defaultValue: "No pudimos cargar reservas." }));
+        setBookings([]);
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [t]);
 
-  const statusLabel = (s: string) => {
-    if (s === "confirmed") return "Confirmada";
-    if (s === "completed") return "Completada";
-    return "Cancelada";
+  const filtered = useMemo(
+    () => filter === "all" ? bookings : bookings.filter((b) => statusToFilter(b.status) === filter),
+    [bookings, filter],
+  );
+
+  const statusLabel = (s: BookingStatus): string => {
+    if (s === BookingStatus.Confirmed) return t("provider.statusConfirmed", { defaultValue: "Confirmada" });
+    if (s === BookingStatus.Pending) return t("provider.statusPending", { defaultValue: "Pendiente" });
+    if (s === BookingStatus.Completed) return t("provider.statusCompleted", { defaultValue: "Completada" });
+    return t("provider.statusCancelled", { defaultValue: "Cancelada" });
   };
 
   return (
@@ -37,8 +66,8 @@ export default function ProveedorReservasPage() {
             <div className="flex-1 min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                 <h1 className="text-xl md:text-2xl font-bold text-charcoal">{t("provider.bookings")}</h1>
-                <div className="flex gap-2">
-                  {(["all", "confirmed", "completed", "cancelled"] as const).map((f) => (
+                <div className="flex gap-2 flex-wrap">
+                  {(["all", "pending", "confirmed", "completed", "cancelled"] as const).map((f) => (
                     <button
                       key={f}
                       onClick={() => setFilter(f)}
@@ -46,38 +75,78 @@ export default function ProveedorReservasPage() {
                         filter === f ? "bg-charcoal text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
                       }`}
                     >
-                      {f === "all" ? "Todas" : statusLabel(f)}
+                      {f === "all"
+                        ? t("admin.all", { defaultValue: "Todas" })
+                        : f === "pending" ? t("provider.statusPending", { defaultValue: "Pendiente" })
+                        : f === "confirmed" ? t("provider.statusConfirmed", { defaultValue: "Confirmada" })
+                        : f === "completed" ? t("provider.statusCompleted", { defaultValue: "Completada" })
+                        : t("provider.statusCancelled", { defaultValue: "Cancelada" })}
                     </button>
                   ))}
                 </div>
               </div>
+
+              {error && (
+                <div className="bg-coral/10 border border-coral/30 text-coral text-sm px-4 py-3 rounded-xl mb-4">
+                  {error}
+                </div>
+              )}
+
               <div className="bg-white rounded-2xl border border-gray-100 p-5 md:p-6 overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100">
-                      <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">ID</th>
-                      <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">{t("provider.customer")}</th>
-                      <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">{t("provider.tour")}</th>
-                      <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">{t("provider.date")}</th>
-                      <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">Total</th>
-                      <th className="text-left text-xs font-medium text-gray-400 py-3">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((b) => (
-                      <tr key={b.id} className="border-b border-gray-50 last:border-0">
-                        <td className="py-3 pr-4 font-medium text-charcoal">{b.id}</td>
-                        <td className="py-3 pr-4 text-gray-600">{b.customer}</td>
-                        <td className="py-3 pr-4 text-gray-600 truncate max-w-[140px]">{b.tour}</td>
-                        <td className="py-3 pr-4 text-gray-500">{b.date}</td>
-                        <td className="py-3 pr-4 font-medium text-charcoal">${b.total.toLocaleString()}</td>
-                        <td className="py-3">
-                          <span className={`text-xs font-medium px-2 py-1 rounded-full ${statusColor(b.status)}`}>{statusLabel(b.status)}</span>
-                        </td>
-                      </tr>
+                {loading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="h-8 bg-gray-100 rounded animate-pulse" />
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 flex items-center justify-center mx-auto mb-4 text-gray-300">
+                      <i className="ri-calendar-line text-3xl" />
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      {bookings.length === 0
+                        ? t("provider.noBookings", { defaultValue: "Aún no tienes reservas." })
+                        : t("provider.noMatches", { defaultValue: "Sin coincidencias con los filtros." })}
+                    </p>
+                  </div>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">{t("provider.bookingId", { defaultValue: "ID" })}</th>
+                        <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">{t("provider.customer")}</th>
+                        <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">{t("provider.tour")}</th>
+                        <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">{t("provider.date")}</th>
+                        <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">{t("provider.guestsColumn", { defaultValue: "Huéspedes" })}</th>
+                        <th className="text-right text-xs font-medium text-gray-400 py-3 pr-4">{t("provider.totalColumn", { defaultValue: "Total" })}</th>
+                        <th className="text-right text-xs font-medium text-gray-400 py-3 pr-4">{t("provider.netColumn", { defaultValue: "Neto" })}</th>
+                        <th className="text-left text-xs font-medium text-gray-400 py-3">{t("provider.statusColumn", { defaultValue: "Estado" })}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((b) => (
+                        <tr key={b.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
+                          <td className="py-3 pr-4 font-mono text-xs text-charcoal">{b.reference}</td>
+                          <td className="py-3 pr-4">
+                            <div className="text-charcoal text-sm">{b.customerName}</div>
+                            <div className="text-xs text-gray-400 truncate max-w-[180px]">{b.customerEmail}</div>
+                          </td>
+                          <td className="py-3 pr-4 text-gray-600 truncate max-w-[200px]">{b.tourTitle}</td>
+                          <td className="py-3 pr-4 text-gray-500">{b.date}{b.startTime ? ` · ${b.startTime.slice(0, 5)}` : ""}</td>
+                          <td className="py-3 pr-4 text-gray-600">{b.adults + b.children}</td>
+                          <td className="py-3 pr-4 text-right font-medium text-charcoal">${b.totalPrice.toLocaleString(priceLocale)}</td>
+                          <td className="py-3 pr-4 text-right font-semibold text-ocean">${b.netToProvider.toLocaleString(priceLocale)}</td>
+                          <td className="py-3">
+                            <span className={`text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${statusColor(b.status)}`}>
+                              {statusLabel(b.status)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           </div>

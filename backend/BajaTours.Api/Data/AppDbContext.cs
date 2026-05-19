@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<Favorite> Favorites => Set<Favorite>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<AuthToken> AuthTokens => Set<AuthToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -91,6 +92,8 @@ public class AppDbContext : DbContext
             e.Property(b => b.DiscountAmount).HasPrecision(10, 2);
             e.Property(b => b.ContactName).HasMaxLength(200);
             e.Property(b => b.ContactEmail).HasMaxLength(256);
+            e.Property(b => b.CancelReason).HasMaxLength(64);
+            e.Property(b => b.CancelComment).HasMaxLength(500);
             e.HasOne(b => b.User)
                 .WithMany(u => u.Bookings)
                 .HasForeignKey(b => b.UserId)
@@ -161,6 +164,18 @@ public class AppDbContext : DbContext
             e.HasOne(r => r.User)
                 .WithMany(u => u.RefreshTokens)
                 .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AuthToken>(e =>
+        {
+            e.HasIndex(t => t.TokenHash).IsUnique();
+            e.HasIndex(t => new { t.UserId, t.Purpose });
+            e.Property(t => t.TokenHash).HasMaxLength(128).IsRequired();
+            e.Ignore(t => t.IsUsable);
+            e.HasOne(t => t.User)
+                .WithMany()
+                .HasForeignKey(t => t.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

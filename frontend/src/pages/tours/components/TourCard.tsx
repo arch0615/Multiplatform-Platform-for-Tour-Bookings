@@ -1,43 +1,39 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-
-interface Tour {
-  id: string;
-  slug: string;
-  title: string;
-  location: string;
-  price: number;
-  duration: string;
-  category: string;
-  rating: number;
-  reviewCount: number;
-  image: string;
-  languages: string[];
-  bestRated: boolean;
-}
+import type { TourListItem } from "@/lib/tours";
 
 interface TourCardProps {
-  tour: Tour;
+  tour: TourListItem;
   priceLocale: string;
 }
 
+const placeholderImage =
+  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80&auto=format&fit=crop";
+
 export default function TourCard({ tour, priceLocale }: TourCardProps) {
   const { t } = useTranslation();
+  const languages = tour.languages
+    .split(",")
+    .map((l) => l.trim().toUpperCase())
+    .filter(Boolean);
+  const isBestRated = tour.rating >= 4.8 && tour.reviewCount >= 2;
 
   return (
     <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:-translate-y-1 transition-all duration-300">
       <div className="relative h-48 md:h-52 overflow-hidden">
         <img
-          src={tour.image}
+          src={tour.coverImageUrl ?? placeholderImage}
           alt={tour.title}
+          loading="lazy"
           className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
         />
-        {tour.bestRated && (
+        {isBestRated && (
           <span className="absolute top-3 left-3 bg-ocean text-white text-xs font-semibold px-2.5 py-1 rounded-full">
             {t("card.bestRated")}
           </span>
         )}
         <button
+          type="button"
           className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-white/80 hover:bg-white text-charcoal hover:text-coral transition-colors"
           aria-label={t("card.save")}
         >
@@ -64,11 +60,13 @@ export default function TourCard({ tour, priceLocale }: TourCardProps) {
             <div className="w-3.5 h-3.5 flex items-center justify-center text-coral">
               <i className="ri-star-fill text-xs" />
             </div>
-            <span className="text-sm font-semibold text-charcoal">{tour.rating}</span>
+            <span className="text-sm font-semibold text-charcoal">{tour.rating.toFixed(1)}</span>
           </div>
-          <span className="text-xs text-gray-400">({tour.reviewCount} {t("card.reviews")})</span>
+          <span className="text-xs text-gray-400">
+            ({tour.reviewCount} {t("card.reviews")})
+          </span>
           <div className="flex gap-1 ml-auto">
-            {tour.languages.map((lang) => (
+            {languages.map((lang) => (
               <span
                 key={lang}
                 className="text-[10px] font-medium px-1.5 py-0.5 bg-gray-100 rounded text-gray-600"
@@ -83,7 +81,8 @@ export default function TourCard({ tour, priceLocale }: TourCardProps) {
           <div>
             <span className="text-xs text-gray-500">{t("card.from")}</span>
             <span className="text-lg font-bold text-ocean ml-1">
-              ${tour.price.toLocaleString(priceLocale)} <span className="text-xs font-normal text-gray-500">MXN</span>
+              ${tour.priceAdult.toLocaleString(priceLocale)}{" "}
+              <span className="text-xs font-normal text-gray-500">MXN</span>
             </span>
             <span className="text-xs text-gray-500 ml-1">{t("card.perPerson")}</span>
           </div>

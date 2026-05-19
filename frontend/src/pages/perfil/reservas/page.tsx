@@ -1,38 +1,71 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import ClientSidebar from "../components/ClientSidebar";
-import { tours } from "@/mocks/tours";
+import { ApiError } from "@/lib/api";
+import { BookingStatus, listMyBookings, type Booking } from "@/lib/bookings";
 
-const mockBookings = [
-  { id: "BK-001", tourId: 1, tourTitle: "Snorkel con tiburón ballena", date: "2026-05-20", adults: 2, children: 1, total: 5400, status: "confirmed", image: tours[0].image, bookingId: "BK-001" },
-  { id: "BK-002", tourId: 3, tourTitle: "Tour gastronómico La Paz", date: "2026-04-15", adults: 2, children: 0, total: 2400, status: "completed", image: tours[2].image, bookingId: "BK-002" },
-  { id: "BK-003", tourId: 5, tourTitle: "City tour histórico", date: "2026-06-10", adults: 1, children: 0, total: 800, status: "pending", image: tours[4].image, bookingId: "BK-003" },
-  { id: "BK-004", tourId: 2, tourTitle: "Paseo en kayak bioluminiscente", date: "2026-03-10", adults: 2, children: 0, total: 3000, status: "cancelled", image: tours[1].image, bookingId: "BK-004" },
-];
+const placeholderImage =
+  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80&auto=format&fit=crop";
+
+function isUpcoming(b: Booking, today: string): boolean {
+  return b.status === BookingStatus.Pending
+    || (b.status === BookingStatus.Confirmed && b.date >= today);
+}
+function isPast(b: Booking, today: string): boolean {
+  return b.status === BookingStatus.Completed
+    || (b.status === BookingStatus.Confirmed && b.date < today);
+}
+
+function statusColor(s: BookingStatus): string {
+  if (s === BookingStatus.Confirmed) return "bg-ocean/10 text-ocean";
+  if (s === BookingStatus.Pending) return "bg-sand/60 text-charcoal";
+  if (s === BookingStatus.Completed) return "bg-gray-100 text-gray-600";
+  return "bg-coral/10 text-coral";
+}
 
 export default function PerfilReservasPage() {
   const { t, i18n } = useTranslation("profile");
-  const [filter, setFilter] = useState<"upcoming" | "past" | "cancelled">("upcoming");
   const priceLocale = i18n.language === "es" ? "es-MX" : "en-US";
 
-  const filtered = mockBookings.filter((b) => {
-    if (filter === "upcoming") return b.status === "confirmed" || b.status === "pending";
-    if (filter === "past") return b.status === "completed";
-    return b.status === "cancelled";
-  });
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"upcoming" | "past" | "cancelled">("upcoming");
 
-  const statusColor = (s: string) => {
-    if (s === "confirmed") return "bg-ocean/10 text-ocean";
-    if (s === "pending") return "bg-sand/60 text-charcoal";
-    if (s === "completed") return "bg-gray-100 text-gray-600";
-    return "bg-coral/10 text-coral";
-  };
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    listMyBookings()
+      .then((items) => {
+        if (!cancelled) setBookings(items);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof ApiError ? err.message : t("profile.loadError", { defaultValue: "No pudimos cargar tus reservas." }));
+        setBookings([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [t]);
 
-  const statusLabel = (s: string) => {
-    if (s === "confirmed") return t("profile.statusConfirmed");
-    if (s === "pending") return t("profile.statusPending");
-    if (s === "completed") return t("profile.statusCompleted");
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const filtered = useMemo(() => {
+    return bookings.filter((b) => {
+      if (filter === "upcoming") return isUpcoming(b, today);
+      if (filter === "past") return isPast(b, today);
+      return b.status === BookingStatus.Cancelled;
+    });
+  }, [bookings, filter, today]);
+
+  const statusLabel = (s: BookingStatus): string => {
+    if (s === BookingStatus.Confirmed) return t("profile.statusConfirmed");
+    if (s === BookingStatus.Pending) return t("profile.statusPending");
+    if (s === BookingStatus.Completed) return t("profile.statusCompleted");
     return t("profile.statusCancelled");
   };
 
@@ -61,7 +94,26 @@ export default function PerfilReservasPage() {
                   </div>
                 </div>
 
-                {filtered.length === 0 ? (
+                {error && (
+                  <div className="bg-coral/10 border border-coral/30 text-coral text-sm px-4 py-3 rounded-xl mb-4">
+                    {error}
+                  </div>
+                )}
+
+                {loading ? (
+                  <div className="space-y-4">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="flex flex-col sm:flex-row gap-4 p-4 bg-gray-50 rounded-xl animate-pulse">
+                        <div className="w-full sm:w-32 h-24 bg-gray-200 rounded-lg shrink-0" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-gray-200 rounded w-2/3" />
+                          <div className="h-3 bg-gray-200 rounded w-1/2" />
+                          <div className="h-3 bg-gray-200 rounded w-1/3" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : filtered.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="w-16 h-16 flex items-center justify-center mx-auto mb-4 text-gray-300">
                       <i className="ri-calendar-line text-3xl" />
@@ -75,34 +127,46 @@ export default function PerfilReservasPage() {
                   <div className="space-y-4">
                     {filtered.map((b) => (
                       <div key={b.id} className="flex flex-col sm:flex-row gap-4 p-4 bg-gray-50 rounded-xl">
-                        <img src={b.image} alt={b.tourTitle} className="w-full sm:w-32 h-24 object-cover rounded-lg shrink-0" />
+                        <img
+                          src={b.tour.coverImageUrl ?? placeholderImage}
+                          alt={b.tour.title}
+                          loading="lazy"
+                          className="w-full sm:w-32 h-24 object-cover rounded-lg shrink-0"
+                        />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-3 mb-2">
-                            <h3 className="text-base font-semibold text-charcoal">{b.tourTitle}</h3>
+                            <h3 className="text-base font-semibold text-charcoal">{b.tour.title}</h3>
                             <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full ${statusColor(b.status)}`}>
                               {statusLabel(b.status)}
                             </span>
                           </div>
+                          <p className="text-xs text-gray-400 mb-2 font-mono">{b.reference}</p>
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500 mb-3">
-                            <span className="flex items-center gap-1"><i className="ri-calendar-line text-xs" /> {b.date}</span>
-                            <span className="flex items-center gap-1"><i className="ri-user-line text-xs" /> {b.adults + b.children} {t("profile.guests")}</span>
-                            <span className="flex items-center gap-1"><i className="ri-money-dollar-circle-line text-xs" /> ${b.total.toLocaleString(priceLocale)} MXN</span>
+                            <span className="flex items-center gap-1">
+                              <i className="ri-calendar-line text-xs" /> {b.date}{b.startTime ? ` · ${b.startTime.slice(0, 5)}` : ""}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <i className="ri-user-line text-xs" /> {b.adults + b.children} {t("profile.guests")}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <i className="ri-money-dollar-circle-line text-xs" /> ${b.totalPrice.toLocaleString(priceLocale)} {b.currency}
+                            </span>
                           </div>
                           <div className="flex flex-wrap gap-3">
-                            <Link to={`/perfil/reservas/${b.bookingId}`} className="text-xs font-medium text-ocean hover:underline">
+                            <Link to={`/perfil/reservas/${b.id}`} className="text-xs font-medium text-ocean hover:underline">
                               {t("profile.viewDetails")}
                             </Link>
-                            {b.status === "confirmed" && (
-                              <Link to={`/perfil/reservas/${b.bookingId}/cancelar`} className="text-xs font-medium text-coral hover:underline">
+                            {b.status === BookingStatus.Confirmed && b.date >= today && (
+                              <Link to={`/perfil/reservas/${b.id}/cancelar`} className="text-xs font-medium text-coral hover:underline">
                                 {t("profile.cancelBooking")}
                               </Link>
                             )}
-                            {b.status === "completed" && (
-                              <Link to={`/perfil/reservas/${b.bookingId}/resena`} className="text-xs font-medium text-ocean hover:underline">
+                            {b.status === BookingStatus.Completed && (
+                              <Link to={`/perfil/reservas/${b.id}/resena`} className="text-xs font-medium text-ocean hover:underline">
                                 {t("profile.leaveReview")}
                               </Link>
                             )}
-                            <Link to={`/voucher/${b.bookingId}`} className="text-xs font-medium text-gray-500 hover:underline">
+                            <Link to={`/voucher/${b.id}`} className="text-xs font-medium text-gray-500 hover:underline">
                               {t("profile.viewVoucher")}
                             </Link>
                           </div>

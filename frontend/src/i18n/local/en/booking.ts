@@ -64,6 +64,8 @@ export default {
   "booking.cancel": "Cancel booking",
   "booking.notFound": "Tour not found",
   "booking.backToTours": "Back to tours",
+  "booking.loadError": "We could not load the tour. Please try again.",
+  "booking.createError": "We could not create the booking. Please try again.",
   "booking.required": "Required field",
   "booking.invalidEmail": "Invalid email",
   "booking.invalidPhone": "Invalid phone",

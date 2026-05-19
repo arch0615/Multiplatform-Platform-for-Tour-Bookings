@@ -6,7 +6,8 @@ public enum AuthError
     EmailAlreadyRegistered,
     InvalidCredentials,
     InvalidRefreshToken,
-    UserNotFound
+    UserNotFound,
+    InvalidToken
 }
 
 public class AuthException : Exception

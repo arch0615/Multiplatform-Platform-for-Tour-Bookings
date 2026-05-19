@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, Link } from "react-router-dom";
 import { categories } from "@/mocks/categories";
-import { tours } from "@/mocks/tours";
+import { tours, mockTourToListItem } from "@/mocks/tours";
 import TourCard from "@/pages/tours/components/TourCard";
 
 const slugToName: Record<string, string> = {
@@ -92,7 +92,7 @@ export default function CategoryPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {categoryTours.map((tour) => (
-                <TourCard key={tour.id} tour={tour} priceLocale={priceLocale} />
+                <TourCard key={tour.id} tour={mockTourToListItem(tour)} priceLocale={priceLocale} />
               ))}
             </div>
           )}

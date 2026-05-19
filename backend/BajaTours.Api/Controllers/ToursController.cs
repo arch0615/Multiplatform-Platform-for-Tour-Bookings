@@ -21,6 +21,9 @@ public class ToursController : ControllerBase
         [FromQuery] decimal? minPrice,
         [FromQuery] decimal? maxPrice,
         [FromQuery] string? language,
+        [FromQuery] string? q,
+        [FromQuery] decimal? minRating,
+        [FromQuery] string? sort,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken ct = default)
@@ -34,13 +37,30 @@ public class ToursController : ControllerBase
         if (minPrice is { } min) query = query.Where(t => t.PriceAdult >= min);
         if (maxPrice is { } max) query = query.Where(t => t.PriceAdult <= max);
         if (!string.IsNullOrWhiteSpace(language)) query = query.Where(t => t.Languages.Contains(language));
+        if (minRating is { } r) query = query.Where(t => t.Rating >= r);
+
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var needle = q.Trim();
+            query = query.Where(t =>
+                EF.Functions.Like(t.Title, $"%{needle}%") ||
+                EF.Functions.Like(t.Description, $"%{needle}%") ||
+                EF.Functions.Like(t.Location, $"%{needle}%"));
+        }
+
+        query = sort switch
+        {
+            "priceLow" => query.OrderBy(t => t.PriceAdult),
+            "priceHigh" => query.OrderByDescending(t => t.PriceAdult),
+            "rating" => query.OrderByDescending(t => t.Rating).ThenByDescending(t => t.ReviewCount),
+            "newest" => query.OrderByDescending(t => t.CreatedAt),
+            _ => query.OrderByDescending(t => t.Rating).ThenByDescending(t => t.CreatedAt)
+        };
 
         pageSize = Math.Clamp(pageSize, 1, 100);
         page = Math.Max(page, 1);
 
         var items = await query
-            .OrderByDescending(t => t.Rating)
-            .ThenByDescending(t => t.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(t => new TourListItemDto(
@@ -50,6 +70,7 @@ public class ToursController : ControllerBase
                 t.Category,
                 t.Location,
                 t.Duration,
+                t.Languages,
                 t.PriceAdult,
                 t.PriceChild,
                 t.MaxGuests,
@@ -60,6 +81,32 @@ public class ToursController : ControllerBase
             .ToListAsync(ct);
 
         return Ok(items);
+    }
+
+    [HttpGet("{slug}/reviews")]
+    public async Task<ActionResult<IEnumerable<TourReviewDto>>> Reviews(string slug, CancellationToken ct)
+    {
+        var tourId = await _db.Tours
+            .Where(t => t.Slug == slug)
+            .Select(t => (Guid?)t.Id)
+            .FirstOrDefaultAsync(ct);
+        if (tourId is null) return NotFound();
+
+        var reviews = await _db.Reviews
+            .Where(r => r.TourId == tourId && r.Status == ReviewStatus.Approved)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new TourReviewDto(
+                r.Id,
+                r.ExternalAuthor ?? (r.User != null ? r.User.FullName : "Anonymous"),
+                r.Rating,
+                r.Title,
+                r.Comment,
+                r.Source,
+                r.Source == ReviewSource.Internal && r.BookingId != null,
+                r.CreatedAt))
+            .ToListAsync(ct);
+
+        return Ok(reviews);
     }
 
     [HttpGet("{slug}")]

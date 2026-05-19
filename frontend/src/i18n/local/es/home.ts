@@ -7,6 +7,11 @@ export const home = {
     paraProveedores: "Para Proveedores",
     login: "Iniciar sesión",
     register: "Registrarse",
+    myAccount: "Mi cuenta",
+    bookings: "Mis reservas",
+    providerPanel: "Panel de proveedor",
+    adminPanel: "Administración",
+    logout: "Cerrar sesión",
   },
   hero: {
     title: "Descubre Baja California Sur",

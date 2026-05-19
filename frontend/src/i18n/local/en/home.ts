@@ -7,6 +7,11 @@ export const home = {
     paraProveedores: "For Providers",
     login: "Log in",
     register: "Sign up",
+    myAccount: "My account",
+    bookings: "My bookings",
+    providerPanel: "Provider panel",
+    adminPanel: "Admin panel",
+    logout: "Log out",
   },
   hero: {
     title: "Discover Baja California Sur",

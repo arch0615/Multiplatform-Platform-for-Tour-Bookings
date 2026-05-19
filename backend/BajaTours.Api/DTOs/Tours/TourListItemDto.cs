@@ -9,6 +9,7 @@ public record TourListItemDto(
     TourCategory Category,
     string Location,
     string Duration,
+    string Languages,
     decimal PriceAdult,
     decimal? PriceChild,
     int MaxGuests,

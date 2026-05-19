@@ -3,14 +3,14 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 interface BookingFormProps {
-  tourId: number;
+  slug: string;
   price: number;
   childPrice: number | null;
   maxGuests: number;
   priceLocale: string;
 }
 
-export default function BookingForm({ tourId, price, childPrice, maxGuests, priceLocale }: BookingFormProps) {
+export default function BookingForm({ slug, price, childPrice, maxGuests, priceLocale }: BookingFormProps) {
   const { t } = useTranslation("tour");
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
@@ -120,7 +120,7 @@ export default function BookingForm({ tourId, price, childPrice, maxGuests, pric
         </div>
 
         <Link
-          to={`/booking/${tourId}`}
+          to={`/booking/${slug}`}
           className="w-full block text-center bg-coral hover:bg-coral/90 text-white font-semibold py-3 rounded-xl transition-colors whitespace-nowrap"
         >
           {t("bookNow")}

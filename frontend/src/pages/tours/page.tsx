@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { tours } from "@/mocks/tours";
+import { useSearchParams } from "react-router-dom";
+import { ApiError } from "@/lib/api";
+import { listTours, TourCategory, type ListToursParams, type TourListItem } from "@/lib/tours";
 import TourCard from "./components/TourCard";
 import FilterSidebar, { type FilterState } from "./components/FilterSidebar";
 import SortSelect from "./components/SortSelect";
@@ -9,24 +10,67 @@ import EmptyState from "./components/EmptyState";
 
 const ITEMS_PER_PAGE = 9;
 
-const parseDuration = (d: string): number => {
-  const num = parseInt(d, 10);
-  return isNaN(num) ? 0 : num;
+// Map UI strings ↔ backend enum / canonical location
+const categoryByName: Record<string, TourCategory> = {
+  Aventura: TourCategory.Adventure,
+  Cultural: TourCategory.Cultural,
+  "Gastronómico": TourCategory.Gastronomic,
+  Transporte: TourCategory.Transport,
+  "Renta de Casas": TourCategory.Housing,
+  Pesca: TourCategory.Fishing,
 };
+
+const locationBySlug: Record<string, string> = {
+  "la-paz": "La Paz",
+  "los-cabos": "Los Cabos",
+  "cabo-san-lucas": "Cabo San Lucas",
+};
+
+function parseDurationHours(s: string): number | null {
+  // Examples: "8 horas", "1.5 horas", "45 minutos", "Por noche"
+  const lower = s.toLowerCase();
+  if (lower.includes("noche")) return 12;
+  const match = lower.match(/(\d+(?:\.\d+)?)\s*(min|hora)/);
+  if (!match) return null;
+  const num = parseFloat(match[1]!);
+  return match[2] === "min" ? num / 60 : num;
+}
+
+function passesDurationBuckets(durationStr: string, buckets: string[]): boolean {
+  if (buckets.length === 0) return true;
+  const hours = parseDurationHours(durationStr);
+  if (hours === null) return true;
+  return buckets.some((b) => {
+    if (b === "short") return hours < 2;
+    if (b === "medium") return hours >= 2 && hours < 4;
+    if (b === "long") return hours >= 4 && hours <= 6;
+    if (b === "fullDay") return hours > 6;
+    return false;
+  });
+}
+
+function passesRatingBuckets(rating: number, buckets: string[]): boolean {
+  if (buckets.length === 0) return true;
+  return buckets.some((b) => {
+    if (b === "excellent") return rating >= 4.5;
+    if (b === "veryGood") return rating >= 4.0;
+    if (b === "good") return rating >= 3.5;
+    return false;
+  });
+}
 
 export default function ToursPage() {
   const { t, i18n } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const priceLocale = i18n.language === "es" ? "es-MX" : "en-US";
-
-  const [searchText, setSearchText] = useState("");
-  const [sort, setSort] = useState("recommended");
-  const [page, setPage] = useState(1);
 
   const initialDest = searchParams.get("destination") || "";
   const initialCat = searchParams.get("category") || "";
 
+  const [searchText, setSearchText] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [sort, setSort] = useState<NonNullable<ListToursParams["sort"]>>("recommended");
+  const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<FilterState>({
     minPrice: "",
     maxPrice: "",
@@ -37,16 +81,23 @@ export default function ToursPage() {
     destination: initialDest,
   });
 
+  const [tours, setTours] = useState<TourListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Sync URL params (Header search) into filter state
   useEffect(() => {
     const dest = searchParams.get("destination") || "";
     const cat = searchParams.get("category") || "";
-    setFilters((prev) => ({
-      ...prev,
-      destination: dest,
-      category: cat,
-    }));
+    setFilters((prev) => ({ ...prev, destination: dest, category: cat }));
     setPage(1);
   }, [searchParams]);
+
+  // Debounce text search → 300ms
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(searchText.trim()), 300);
+    return () => clearTimeout(id);
+  }, [searchText]);
 
   const clearAll = useCallback(() => {
     setFilters({
@@ -64,87 +115,70 @@ export default function ToursPage() {
     setSearchParams({});
   }, [setSearchParams]);
 
+  // Fetch from backend whenever server-side filters change
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    const params: ListToursParams = { pageSize: 100, sort };
+    const cat = categoryByName[filters.category];
+    if (cat !== undefined) params.category = cat;
+    const loc = locationBySlug[filters.destination];
+    if (loc) params.location = loc;
+    if (filters.minPrice) params.minPrice = Number(filters.minPrice);
+    if (filters.maxPrice) params.maxPrice = Number(filters.maxPrice);
+    if (filters.languages.length === 1) params.language = filters.languages[0]!.toLowerCase();
+    if (debouncedSearch) params.q = debouncedSearch;
+    // Top-bucket rating sent server-side; secondary buckets applied client-side
+    if (filters.rating.includes("excellent")) params.minRating = 4.5;
+    else if (filters.rating.includes("veryGood")) params.minRating = 4.0;
+    else if (filters.rating.includes("good")) params.minRating = 3.5;
+
+    listTours(params)
+      .then((items) => {
+        if (!cancelled) {
+          setTours(items);
+          setPage(1);
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err instanceof ApiError ? err.message : t("loadError", { defaultValue: "Could not load tours." }));
+        setTours([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [
+    debouncedSearch, sort,
+    filters.category, filters.destination,
+    filters.minPrice, filters.maxPrice,
+    filters.languages.join(","),
+    filters.rating.join(","),
+    t,
+  ]);
+
+  // Apply client-side polish filters (duration + multi-language AND constraint)
   const filtered = useMemo(() => {
-    let result = [...tours];
-
-    if (searchText.trim()) {
-      const q = searchText.toLowerCase();
-      result = result.filter(
-        (tour) =>
-          tour.title.toLowerCase().includes(q) ||
-          tour.location.toLowerCase().includes(q) ||
-          tour.category.toLowerCase().includes(q)
-      );
-    }
-
-    if (filters.destination) {
-      result = result.filter(
-        (tour) => tour.location.toLowerCase().replace(/\s/g, "-") === filters.destination
-      );
-    }
-
-    if (filters.category) {
-      result = result.filter((tour) =>
-        tour.category.toLowerCase().includes(filters.category.toLowerCase())
-      );
-    }
-
-    if (filters.minPrice) {
-      result = result.filter((tour) => tour.price >= Number(filters.minPrice));
-    }
-    if (filters.maxPrice) {
-      result = result.filter((tour) => tour.price <= Number(filters.maxPrice));
-    }
-
+    let result = tours;
     if (filters.duration.length > 0) {
-      result = result.filter((tour) => {
-        const dur = parseDuration(tour.duration);
-        return filters.duration.some((d) => {
-          if (d === "short") return dur < 2;
-          if (d === "medium") return dur >= 2 && dur < 4;
-          if (d === "long") return dur >= 4 && dur <= 6;
-          if (d === "fullDay") return dur > 6;
-          return false;
-        });
+      result = result.filter((tr) => passesDurationBuckets(tr.duration, filters.duration));
+    }
+    if (filters.rating.length > 1) {
+      result = result.filter((tr) => passesRatingBuckets(tr.rating, filters.rating));
+    }
+    if (filters.languages.length > 1) {
+      // Multi-language AND constraint: tour must include every selected language
+      result = result.filter((tr) => {
+        const tourLangs = tr.languages.toLowerCase().split(",").map((l) => l.trim());
+        return filters.languages.every((sel) => tourLangs.includes(sel.toLowerCase()));
       });
     }
-
-    if (filters.rating.length > 0) {
-      result = result.filter((tour) =>
-        filters.rating.some((r) => {
-          if (r === "excellent") return tour.rating >= 4.5;
-          if (r === "veryGood") return tour.rating >= 4.0;
-          if (r === "good") return tour.rating >= 3.5;
-          return false;
-        })
-      );
-    }
-
-    if (filters.languages.length > 0) {
-      result = result.filter((tour) =>
-        filters.languages.every((lang) => tour.languages.includes(lang))
-      );
-    }
-
-    switch (sort) {
-      case "priceLow":
-        result.sort((a, b) => a.price - b.price);
-        break;
-      case "priceHigh":
-        result.sort((a, b) => b.price - a.price);
-        break;
-      case "rating":
-        result.sort((a, b) => b.rating - a.rating);
-        break;
-      case "newest":
-        result.sort((a, b) => Number(b.id) - Number(a.id));
-        break;
-      default:
-        break;
-    }
-
     return result;
-  }, [searchText, filters, sort]);
+  }, [tours, filters.duration, filters.rating, filters.languages]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
@@ -188,22 +222,19 @@ export default function ToursPage() {
     filters.duration.forEach((d) => {
       pills.push({
         label: t(`filters.${d}`),
-        onRemove: () =>
-          setFilters((f) => ({ ...f, duration: f.duration.filter((v) => v !== d) })),
+        onRemove: () => setFilters((f) => ({ ...f, duration: f.duration.filter((v) => v !== d) })),
       });
     });
     filters.rating.forEach((r) => {
       pills.push({
         label: t(`filters.${r}`),
-        onRemove: () =>
-          setFilters((f) => ({ ...f, rating: f.rating.filter((v) => v !== r) })),
+        onRemove: () => setFilters((f) => ({ ...f, rating: f.rating.filter((v) => v !== r) })),
       });
     });
     filters.languages.forEach((l) => {
       pills.push({
         label: l === "ES" ? t("filters.spanish") : t("filters.english"),
-        onRemove: () =>
-          setFilters((f) => ({ ...f, languages: f.languages.filter((v) => v !== l) })),
+        onRemove: () => setFilters((f) => ({ ...f, languages: f.languages.filter((v) => v !== l) })),
       });
     });
     if (searchText) {
@@ -233,7 +264,7 @@ export default function ToursPage() {
               <input
                 type="text"
                 value={searchText}
-                onChange={(e) => { setSearchText(e.target.value); setPage(1); }}
+                onChange={(e) => setSearchText(e.target.value)}
                 placeholder={t("search.placeholder")}
                 className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-ocean transition-colors bg-white"
               />
@@ -279,16 +310,6 @@ export default function ToursPage() {
                 <i className="ri-arrow-down-s-line" />
               </div>
             </div>
-
-            <button
-              onClick={() => { setPage(1); }}
-              className="bg-coral hover:bg-coral/90 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition-colors whitespace-nowrap flex items-center justify-center gap-2"
-            >
-              <div className="w-4 h-4 flex items-center justify-center">
-                <i className="ri-search-line" />
-              </div>
-              {t("search.button")}
-            </button>
           </div>
 
           {activePills.length > 0 && (
@@ -331,12 +352,34 @@ export default function ToursPage() {
             <main className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-4 md:mb-6">
                 <p className="text-sm text-gray-500">
-                  {t("resultsCount", { count: filtered.length })}
+                  {loading
+                    ? t("loading", { defaultValue: "Cargando..." })
+                    : t("resultsCount", { count: filtered.length })}
                 </p>
-                <SortSelect value={sort} onChange={(v) => { setSort(v); setPage(1); }} />
+                <SortSelect value={sort} onChange={(v) => { setSort(v as typeof sort); setPage(1); }} />
               </div>
 
-              {paginated.length === 0 ? (
+              {error && !loading && (
+                <div className="bg-coral/10 border border-coral/30 text-coral text-sm px-4 py-3 rounded-xl mb-4">
+                  {error}
+                </div>
+              )}
+
+              {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-2xl overflow-hidden border border-gray-100 animate-pulse">
+                      <div className="h-48 md:h-52 bg-gray-200" />
+                      <div className="p-4 md:p-5 space-y-3">
+                        <div className="h-3 bg-gray-200 rounded w-1/3" />
+                        <div className="h-4 bg-gray-200 rounded w-3/4" />
+                        <div className="h-3 bg-gray-200 rounded w-1/2" />
+                        <div className="h-8 bg-gray-200 rounded w-full mt-4" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : paginated.length === 0 ? (
                 <EmptyState onClear={clearAll} />
               ) : (
                 <>

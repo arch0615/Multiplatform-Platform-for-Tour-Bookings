@@ -2,7 +2,14 @@ using System.Text;
 using BajaTours.Api.Configuration;
 using BajaTours.Api.Data;
 using BajaTours.Api.Domain.Entities;
+using BajaTours.Api.Services.Admin;
 using BajaTours.Api.Services.Auth;
+using BajaTours.Api.Services.Bookings;
+using BajaTours.Api.Services.Files;
+using BajaTours.Api.Services.Notifications;
+using BajaTours.Api.Services.Payments;
+using BajaTours.Api.Services.ProviderTours;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +33,36 @@ if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey) || jwtOptions.SigningKey.St
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+builder.Services.Configure<PaymentsOptions>(builder.Configuration.GetSection(PaymentsOptions.SectionName));
+var paymentsMode = builder.Configuration.GetSection(PaymentsOptions.SectionName)["Mode"] ?? "Mock";
+if (paymentsMode.Equals("Mock", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddScoped<IMercadoPagoService, MockMercadoPagoService>();
+}
+else
+{
+    builder.Services.AddHttpClient(MercadoPagoService.HttpClientName);
+    builder.Services.AddScoped<IMercadoPagoService, MercadoPagoService>();
+}
+builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IProviderToursService, ProviderToursService>();
+builder.Services.AddScoped<IProviderReportsService, ProviderReportsService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+
+builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
+builder.Services.AddScoped<IFileStorage, LocalDiskFileStorage>();
+
+builder.Services.Configure<NotificationsOptions>(builder.Configuration.GetSection(NotificationsOptions.SectionName));
+var emailProvider = builder.Configuration.GetSection(NotificationsOptions.SectionName)["Email:Provider"] ?? "Noop";
+if (emailProvider.Equals("Smtp", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+}
+else
+{
+    builder.Services.AddScoped<IEmailService, NoopEmailService>();
+}
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -99,6 +136,19 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors(CorsPolicy);
+
+// Serve uploaded files at /uploads/<filename>
+var storageSection = app.Configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>() ?? new StorageOptions();
+var uploadsDir = Path.IsPathRooted(storageSection.LocalPath)
+    ? storageSection.LocalPath
+    : Path.Combine(builder.Environment.ContentRootPath, storageSection.LocalPath);
+Directory.CreateDirectory(uploadsDir);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsDir),
+    RequestPath = storageSection.PublicUrlPath,
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

@@ -78,6 +78,42 @@ public class AuthController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("verify-email")]
+    public async Task<ActionResult<UserDto>> VerifyEmail([FromBody] VerifyEmailRequest req, CancellationToken ct)
+    {
+        try
+        {
+            var me = await _auth.VerifyEmailAsync(req.Token, ct);
+            return Ok(me);
+        }
+        catch (AuthException ex) when (ex.Error == AuthError.InvalidToken)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req, CancellationToken ct)
+    {
+        await _auth.RequestPasswordResetAsync(req.Email, ct);
+        // Always 202 — never reveal whether the email exists
+        return Accepted();
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req, CancellationToken ct)
+    {
+        try
+        {
+            await _auth.ResetPasswordAsync(req.Token, req.NewPassword, ct);
+            return NoContent();
+        }
+        catch (AuthException ex) when (ex.Error == AuthError.InvalidToken)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpGet("me")]
     [Authorize]
     public async Task<ActionResult<UserDto>> Me(CancellationToken ct)

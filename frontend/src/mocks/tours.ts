@@ -224,3 +224,33 @@ export const tours = [
     bestRated: false,
   },
 ];
+
+const categoryNameToEnum: Record<string, number> = {
+  "Aventura": 0,
+  "Cultural": 1,
+  "Gastronómico": 2,
+  "Transporte": 3,
+  "Renta de Casas": 4,
+  "Pesca": 5,
+};
+
+// Adapter so legacy pages can pass mock tours into the new TourCard / TourListItem shape.
+// Remove once category/destination pages are wired to the real /api/tours endpoint.
+export function mockTourToListItem(t: typeof tours[number]) {
+  return {
+    id: t.id,
+    slug: t.slug,
+    title: t.title,
+    category: (categoryNameToEnum[t.category] ?? 0) as 0 | 1 | 2 | 3 | 4 | 5,
+    location: t.location,
+    duration: t.duration,
+    languages: t.languages.join(","),
+    priceAdult: t.price,
+    priceChild: null,
+    maxGuests: 12,
+    rating: t.rating,
+    reviewCount: t.reviewCount,
+    coverImageUrl: t.image,
+    providerName: "",
+  };
+}

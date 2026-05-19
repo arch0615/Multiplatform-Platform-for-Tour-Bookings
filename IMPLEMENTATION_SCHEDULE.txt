@@ -1,0 +1,450 @@
+================================================================================
+BAJA TOURS — IMPLEMENTATION SCHEDULE
+================================================================================
+Created:           2026-05-18
+Anchor (Day 0):    2026-05-18 (Monday)
+Assumes:           one full-time engineer, 5 days/week, ~6 productive hours/day
+Adjust:            multiply all date offsets by your own focus factor if part-time
+                   (e.g. 50% focus = double the week numbers)
+
+This schedule covers everything left after the current state below. Phase
+boundaries are functional milestones, not just date ranges — finish a phase
+before starting the next so you don't accumulate half-wired features.
+
+
+================================================================================
+STATE AS OF DAY 0 (what is already done)
+================================================================================
+
+Backend (BajaTours.Api, .NET 8 + EF Core + SQL Server)
+  [done] Project scaffold, layered (Domain/Data/DTOs/Controllers/Services)
+  [done] All 11 entity tables + InitialCreate + AddAuth migrations applied
+  [done] JWT auth: register (client + provider), login, refresh w/ rotation,
+         logout, /me, role policies (ClientOnly, ProviderOnly, AdminOnly)
+  [done] Tours read-only API: GET /api/tours (filters), GET /api/tours/{slug}
+  [done] Bookings API: POST /api/bookings, GET /api/bookings/{id}, GET /me
+  [done] Mercado Pago integration (Mock mode wired, Real mode coded but untested
+         against sandbox creds), webhook handler skeleton
+
+Frontend (Vite + React 19 + Tailwind, src/lib/api.ts as the API client)
+  [done] AuthContext + token storage + 401-refresh-retry
+  [done] Login + register (client + provider) screens wired to backend
+  [done] RequireAuth + RequireRole route guards, applied to all protected routes
+  [done] Header user widget (avatar, dropdown, logout)
+  [done] Booking page wired to POST /api/bookings + initPoint redirect
+  [done] Booking success page wired to GET /api/bookings/{id} with status polling
+
+Infra
+  [done] SQL Server 2022 (Developer) installed natively on Ubuntu 24.04
+         (with libldap-2.5 workaround), connection string configured
+  [done] Node 22 + dotnet 8 SDK installed, EF tools global
+
+Not yet built — see schedule below.
+
+
+================================================================================
+PHASE 1 — DEMO-READY MVP (Weeks 1–3, target 2026-06-08)
+================================================================================
+Goal: Yurico can hand the URL to real users in Baja California Sur, take a real
+payment via Mercado Pago, see the booking appear in admin, and the provider gets
+a confirmation email. Everything else is post-MVP polish.
+
+--------------------------------------------------------------------------------
+WEEK 1 — Catalog + browsing                          (May 18 – May 22, 2026)
+--------------------------------------------------------------------------------
+
+[1.1] Seed comprehensive sample data                                  ~0.5 day
+    - SQL seed script under /home/Tour/backend/Seed/seed.sql
+    - 4-5 providers (with realistic names, RFCs, locations)
+    - 15-20 tours covering Aventura / Cultural / Gastronómica /
+      Transporte / Hospedaje, distributed across La Paz and Los Cabos
+    - 3-5 images per tour (Unsplash/Pexels URLs are fine for now)
+    - 2-3 "fake but realistic" past bookings + Google-source reviews to
+      bootstrap the reviews section
+    Deliverable: `dotnet run --project Seed` (or just sqlcmd) creates a
+                 demo-quality catalog. Idempotent.
+
+[1.2] Wire /tours list page to backend                                ~1 day
+    File: src/pages/tours/page.tsx
+    - Replace `import { tours } from "@/mocks/tours"` with `api.tours.list()`
+    - Map filter UI (category, location, price, language, rating, sort) to
+      backend query params; ToursController already supports them
+    - Pagination: backend already supports `page` + `pageSize`
+    - Loading skeleton + empty state
+    Deliverable: filtering / pagination works against real DB
+
+[1.3] Wire /tours/{slug} detail page to backend                       ~1 day
+    File: src/pages/tour/page.tsx
+    - Replace mock lookup with `getTourBySlug` (lib/tours.ts already exists)
+    - Gallery, itinerary, meeting point, reviews summary all from API
+    - Reviews list: stub to empty array until [3.1]; show "No reviews yet"
+    Deliverable: full detail page renders from DB. Booking link uses slug.
+
+[1.4] Wire /perfil/reservas (client bookings) to backend              ~0.5 day
+    File: src/pages/perfil/reservas/page.tsx (and id detail page)
+    - `listMyBookings()` call (lib/bookings.ts already exists)
+    - Status pills, sortable by date
+    - "Cancel" button visible if status=Confirmed AND date > now (no API yet —
+      add stub `POST /bookings/{id}/cancel` in [1.5])
+
+[1.5] Booking cancel endpoint                                         ~0.5 day
+    Backend: POST /api/bookings/{id}/cancel
+    - Only owner, only if Pending or Confirmed and date in future
+    - Sets booking.Status = Cancelled, payment.Status untouched
+    - (Refund is a separate iteration — see [2.5])
+    Wire to /perfil/reservas/:id/cancelar page.
+
+End-of-week 1 acceptance:
+    - Anonymous user visits site, browses catalog, opens tour, signs up,
+      books a tour, gets to mock-checkout success, sees booking in their
+      profile. No mocks left in the public + client flows.
+
+--------------------------------------------------------------------------------
+WEEK 2 — Provider self-service + payments hardening   (May 25 – May 29, 2026)
+--------------------------------------------------------------------------------
+
+[2.1] Provider products CRUD                                          ~2 days
+    Backend:
+      - POST /api/provider/tours
+      - PUT /api/provider/tours/{id}
+      - DELETE /api/provider/tours/{id}  (soft-delete: status=Archived)
+      - GET /api/provider/tours  (list mine)
+    Authorization: ProviderOnly + ownership check (Tour.ProviderId == me)
+    Frontend:
+      - Wire /proveedor/productos: list, create, edit, archive
+      - Multi-step form: basics → pricing → media → publish
+      - For now skip image upload UI — paste URL strings (see [3.4])
+
+[2.2] Provider bookings + earnings views                              ~1 day
+    Backend:
+      - GET /api/provider/bookings  (list bookings for my tours)
+      - GET /api/provider/earnings?from=&to=  (sum of totalPrice minus commission)
+    Frontend:
+      - Wire /proveedor/reservas, /proveedor/ingresos
+      - Recharts already in deps — use for monthly earnings chart
+
+[2.3] Real Mercado Pago sandbox integration                           ~1 day
+    - Create MP sandbox account: https://www.mercadopago.com.mx/developers
+    - Set Payments:Mode=MercadoPago in appsettings.Production.json
+    - Put AccessToken + WebhookSecret in user-secrets / env vars
+    - Run a real test: card 5031 7557 3453 0604 / 123 / 11/30 (sandbox test card)
+    - Verify webhook fires (use ngrok or smee.io to tunnel to localhost)
+    - Verify booking status flips Pending → Confirmed via webhook (not via
+      back_urls — those don't fire for OXXO/SPEI)
+
+[2.4] Mercado Pago webhook signature verification                     ~0.5 day
+    Real MP signs notifications with HMAC-SHA256 of `id:<value>;ts:<ts>`
+    in the `x-signature` and `x-request-id` headers.
+    File: Controllers/PaymentsController.cs (Webhook action)
+    - Read x-signature header (`ts=...,v1=...` format)
+    - Compute HMAC-SHA256(secret, `id:{data.id};request-id:{x-request-id};ts:{ts}`)
+    - Compare with v1; reject if mismatch (return 401)
+    - Log all rejected signatures
+    Reference: docs.mercadopago.com.mx/developers/en/guides/security/oauth-and-webhooks
+
+[2.5] Refund flow on cancel (Mercado Pago)                            ~0.5 day
+    Backend: when cancelling a Confirmed booking that has Approved payment,
+    call POST /v1/payments/{id}/refunds (MP API).
+    Update Payment.Status = Refunded, Booking.Status = Cancelled.
+    Logged for the admin reports.
+
+End-of-week 2 acceptance:
+    - Provider can sign up, log in, add their tours, see bookings come in
+    - Real card payment via MP sandbox confirms a booking via webhook
+    - Cancelling a paid booking issues a real refund through MP
+
+--------------------------------------------------------------------------------
+WEEK 3 — Notifications + admin + launch prep         (Jun 01 – Jun 05, 2026)
+--------------------------------------------------------------------------------
+
+[3.1] Email notifications (SendGrid or Resend)                        ~1.5 days
+    Backend:
+      - Add Services/Notifications/IEmailService.cs interface
+      - Implement SendGridEmailService (or ResendEmailService — cheaper)
+      - Templates (Razor or simple string interpolation):
+          * BookingConfirmedToCustomer  (booking, tour, meeting point)
+          * BookingConfirmedToProvider  (booking, customer info, total)
+          * BookingCancelled  (to both)
+          * EmailVerify  (signup link)
+          * PasswordReset  (reset link)
+      - Wire from BookingService.MarkPaymentResultAsync (on Approved)
+      - Wire from AuthService.RegisterClientAsync (email verify)
+    Config: Notifications:Email:Provider, ApiKey, FromAddress, FromName
+    Acceptance: book a tour, customer + provider both receive email within 30s
+
+[3.2] Email verification + password reset flows                       ~1 day
+    Backend:
+      - POST /api/auth/verify-email/{token}
+      - POST /api/auth/forgot-password  (always 200 to prevent enumeration)
+      - POST /api/auth/reset-password   (token + new password)
+      - New table: AuthTokens (or reuse RefreshTokens with a type column)
+    Frontend:
+      - Wire /verificar-email/{token} page
+      - Wire /recuperar-contrasena + /restablecer-contrasena pages
+    The screens already exist as stubs from readdy — just wire them.
+
+[3.3] Admin essentials                                                ~1.5 days
+    Backend:
+      - GET /api/admin/providers  (list with status filter)
+      - POST /api/admin/providers/{id}/verify
+      - POST /api/admin/providers/{id}/suspend
+      - GET /api/admin/bookings  (filters: date range, status, provider)
+      - GET /api/admin/dashboard-stats  (total revenue, bookings count, etc.)
+    Frontend wire (currently all mocks):
+      - /admin (dashboard with KPIs)
+      - /admin/proveedores (list + verify/suspend buttons)
+      - /admin/reservas (list)
+    Skip until [4.x]: cupones, comisiones, resenas, configuracion, auditoria
+
+[3.4] File upload — provider docs + tour images                       ~1 day
+    - Decide storage: local disk for dev, Azure Blob / S3 for prod
+    - Backend: POST /api/files/upload  (multipart, returns CDN URL)
+    - Provider onboarding: upload INE, comprobante, CURP (saved as
+      ProviderDocument rows — add migration)
+    - Tour products: gallery upload, stored as TourImage rows
+    Acceptance: provider uploads 3 photos in product editor, they render
+    on the public detail page after save.
+
+[3.5] Launch prep                                                     ~0.5 day
+    - Production appsettings: real DB connection string, real JWT signing key
+      (use `openssl rand -base64 64`), real MP creds, real frontend domain
+      in Cors:AllowedOrigins
+    - Frontend env: VITE_API_BASE_URL pointing at production API
+    - SSL: Let's Encrypt on the VPS (Caddy or nginx-certbot)
+    - Backup: nightly `sqlcmd -Q "BACKUP DATABASE..."` cron, off-VPS rsync
+
+End-of-week 3 acceptance:
+    Demo-ready MVP. Yurico can give the URL to early users, accept real
+    bookings, get email confirmations, and moderate from /admin.
+
+
+================================================================================
+PHASE 2 — FULL SPEC FEATURES (Weeks 4–7, target 2026-07-06)
+================================================================================
+Goal: deliver everything from the negotiated contract that wasn't critical
+for the first demo. Each item below is independent — reorder by what Yurico
+prioritizes.
+
+--------------------------------------------------------------------------------
+WEEK 4 — Reviews + coupons                            (Jun 08 – Jun 12)
+--------------------------------------------------------------------------------
+
+[4.1] Reviews system                                                  ~2 days
+    - POST /api/bookings/{id}/review  (only if booking.Status==Completed
+      AND no review yet AND owner)
+    - Add Booking.CompletedAt + cron/scheduled job: bookings whose Date
+      is past and Status==Confirmed → Completed
+    - GET /api/tours/{slug}/reviews  (Approved only)
+    - Admin moderation:
+        GET /api/admin/reviews?status=Pending
+        POST /api/admin/reviews/{id}/approve|reject
+    - Hybrid imported reviews:
+        Admin can POST /api/admin/reviews with Source=Google|TripAdvisor
+        and an ExternalAuthor name (manual import for launch — automated
+        scraping is post-launch)
+    Frontend:
+      - Wire tour detail reviews tab to GET /tours/{slug}/reviews
+      - Wire /perfil/reservas/{id}/resena form
+      - Wire /admin/resenas
+      - Wire /proveedor/resenas (provider sees their tour reviews)
+
+[4.2] Coupons engine                                                  ~1 day
+    Backend:
+      - POST /api/admin/coupons (CRUD already has table)
+      - In BookingService.CreateAsync: if req.CouponCode supplied, validate
+        (active, in date window, not exceeded MaxRedemptions), apply
+        DiscountPercent or DiscountAmount, increment Redeemed atomically
+        (concurrency: use UPDATE WITH (UPDLOCK) or optimistic check)
+    Frontend:
+      - Coupon code input on booking step 3
+      - Recompute totals before redirect to MP
+      - Show DiscountAmount in summary
+
+[4.3] Visual availability calendar                                    ~2 days
+    Backend:
+      - PUT /api/provider/tours/{id}/availability
+        body: [{date, startTime, capacity, priceOverride?}]
+      - GET /api/tours/{slug}/availability?month=YYYY-MM
+      - BookingService: instead of MaxGuests check, decrement Booked on
+        the matching TourAvailability row; reject if Booked + adults+children
+        > Capacity
+    Frontend:
+      - Provider calendar page (/proveedor/calendario): month grid,
+        click date to set capacity/price
+      - Booking page: replace plain date input with the availability grid
+        so user can only pick dates with remaining capacity
+
+--------------------------------------------------------------------------------
+WEEK 5 — WhatsApp + favorites + tour search           (Jun 15 – Jun 19)
+--------------------------------------------------------------------------------
+
+[5.1] WhatsApp notifications via Twilio                               ~1.5 days
+    - Twilio WhatsApp Business sandbox first; production requires WABA approval
+    - Add Services/Notifications/IWhatsAppService.cs
+    - Templates: BookingConfirmed, BookingReminder (24h before tour),
+      PaymentReceived (to provider)
+    - User preferences: User.NotifyByEmail + User.NotifyByWhatsApp flags
+    - Frontend: /perfil/notificaciones page (already stubbed) — wire to PATCH /me
+
+[5.2] Favorites                                                       ~0.5 day
+    - POST/DELETE /api/favorites/{tourId} (table already exists)
+    - GET /api/favorites/me
+    - Frontend: heart icon on tour cards toggles favorite, /perfil/favoritos
+      wired to listing
+
+[5.3] Homepage search                                                 ~0.5 day
+    - The hero search currently does nothing; wire submit to
+      `/tours?category=...&location=...&date=...`
+    - Tour list page reads query string filters
+
+[5.4] PayPal integration                                              ~1.5 days
+    - PayPal Orders v2 API (HttpClient pattern same as Mercado Pago)
+    - Frontend: payment provider chooser on booking step 3 (radio:
+      Mercado Pago / PayPal)
+    - Same webhook + status-transition machinery; just a second
+      IPaymentProvider implementation
+    - This is in Yurico's original spec but he said Phase 2 was too
+      expensive — confirm with him before building, may be deprioritized
+
+--------------------------------------------------------------------------------
+WEEK 6 — Admin moderation depth                       (Jun 22 – Jun 26)
+--------------------------------------------------------------------------------
+
+[6.1] Audit log                                                       ~0.5 day
+    - Add AuditLog table (Id, ActorUserId, Action, EntityType, EntityId,
+      Payload, At, Ip)
+    - Audit middleware that records all POST/PUT/DELETE under /api/admin/*
+    - Wire /admin/auditoria to list it
+
+[6.2] Commission ledger + provider payouts                            ~2 days
+    - Add PayoutLedger entries when booking.Status flips to Completed
+    - Admin can mark batches as "Settled" with a reference number (manual
+      bank transfer for launch; automated payouts later)
+    - Wire /admin/comisiones with monthly summary per provider
+
+[6.3] Admin: rest of the screens                                      ~2 days
+    - Wire /admin/productos (cross-provider tour list, suspend/feature)
+    - Wire /admin/usuarios (list, suspend, change role)
+    - Wire /admin/categorias + /admin/destinos (CRUD)
+    - Wire /admin/reportes (export bookings CSV, revenue by month/category)
+    - Wire /admin/notificaciones (broadcast email/WA to providers)
+    - Wire /admin/contenido (homepage hero, featured tours)
+    - Wire /admin/configuracion (default commission rate, etc.)
+
+--------------------------------------------------------------------------------
+WEEK 7 — Hardening + observability                    (Jun 29 – Jul 03)
+--------------------------------------------------------------------------------
+
+[7.1] Rate limiting + abuse protection                                ~0.5 day
+    - AddRateLimiter in Program.cs:
+        * /api/auth/login: 5/min per IP
+        * /api/auth/register*: 3/min per IP
+        * /api/bookings: 10/min per user
+    - Account lockout: 5 failed logins → 15-min lock per email
+
+[7.2] Logging + monitoring                                            ~1 day
+    - Serilog with structured logs (JSON to file in prod)
+    - Health checks beyond /health: DB, MP API reachability
+    - Optional: Seq for local log search, or just rotate to /var/log
+    - Frontend error boundary + Sentry (or skip Sentry, manual is fine
+      for now)
+
+[7.3] CI/CD                                                           ~1 day
+    - GitHub Actions:
+        * Build + test on PR
+        * Deploy to VPS on push to main (rsync + systemd restart)
+    - Frontend: build + rsync out/ to VPS, served by Caddy/nginx
+    - DB migrations: `dotnet ef database update` as part of deploy
+
+[7.4] Pre-existing TS errors cleanup                                  ~0.5 day
+    The 22 type errors in mocks + readdy-generated pages that have been
+    flagged in every type-check. Now that those pages are being wired
+    one by one, most will be cleaned up naturally; finish the rest.
+
+[7.5] Security review pass                                            ~0.5 day
+    - Run /security-review (or equivalent) on the codebase
+    - Verify: no secrets in repo, all writes have authorization, all
+      multi-tenant queries filter by owner, SQL via parameterized EF only,
+      MP webhook signature on, CORS locked to prod domains
+    - Penetration sanity: try IDOR (other-user booking access), token tampering
+
+End-of-Phase-2 acceptance:
+    Feature-complete vs. the negotiated spec. Production-deployed.
+    Yurico can hand the platform to providers for self-service onboarding.
+
+
+================================================================================
+PHASE 3 — POST-LAUNCH (optional / on-demand, week 8+)
+================================================================================
+
+These are out-of-scope for the negotiated contract but plausible follow-ons.
+Build only on explicit ask.
+
+[X.1]  .NET MAUI mobile apps (iOS/Android)              ~3-4 weeks
+       Yurico said this exceeded budget. Web is responsive; revisit only
+       if traction justifies it.
+
+[X.2]  Automated external review import (Google Places  ~1 week
+       API, TripAdvisor scrape) — manual import works for launch.
+
+[X.3]  Multi-currency display (USD for foreign tourists) ~3 days
+       Listed in MXN, display switch via i18n. MP charges in MXN.
+
+[X.4]  In-app provider messaging / chat                 ~2 weeks
+       Mentioned at the demo. Phase 4 material.
+
+[X.5]  Loyalty / referral program                       ~1.5 weeks
+
+[X.6]  Native CFDI 4.0 invoicing (Mexican tax compliance) ~2 weeks
+       Required for B2B sales above a threshold. Use a service like
+       Facturama / SW SAPIEN; don't roll your own.
+
+
+================================================================================
+ASSUMPTIONS AND RISKS
+================================================================================
+
+ASSUMPTIONS
+  - Solo full-time engineer, ~30 hours/week of focused work
+  - Yurico provides production content (real tour descriptions, photos,
+    provider list) by end of Week 2
+  - Mercado Pago sandbox account approved within 1 day (usually instant)
+  - VPS is provisioned and accessible by end of Week 2
+
+RISKS — ADDRESS EARLY
+  - MP WABA approval for WhatsApp Business can take 2-3 weeks. Apply NOW,
+    even before [5.1] is needed.
+  - CFDI invoicing may be a hard launch requirement depending on Yurico's
+    business setup. Confirm before Week 3 launch — it's a 2-week build.
+  - SQL Server licensing: Developer edition is free for dev, but production
+    needs a paid Standard license OR a switch to Azure SQL / managed
+    PostgreSQL. Confirm with Yurico which path before Week 3.
+  - 1.9 GB RAM dev VM is undersized for SQL Server + IDE. Move to a 4 GB
+    box before serious work, or accept slow rebuilds.
+
+DEPENDENCIES (do these BEFORE the relevant week)
+  - Week 1: nothing external
+  - Week 2: MP sandbox account + ngrok/smee account
+  - Week 3: SendGrid or Resend account (free tier is enough), VPS provisioned,
+            domain DNS pointed
+  - Week 5: Twilio account, WABA application submitted in Week 2-3
+
+
+================================================================================
+HOW TO USE THIS SCHEDULE
+================================================================================
+
+1. At the start of each week, copy that week's tasks into a working TODO
+   list. Mark them as you go.
+
+2. Each task lists a rough effort. If a task takes 2× the estimate, stop
+   and re-evaluate — usually means something upstream is missing.
+
+3. End-of-week acceptance criteria are non-negotiable. Don't move on
+   until they're met, even if it means cutting scope from later weeks.
+
+4. Items marked "[done]" in the STATE section are baseline. Don't re-do
+   them; build on them.
+
+5. When a feature is built, add a smoke test similar to the existing
+   /tmp/test-*.mjs scripts. Treat them as living regression tests.
