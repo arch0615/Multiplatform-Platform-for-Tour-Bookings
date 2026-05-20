@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { tours } from "@/mocks/tours";
+import { onTourImageError } from "@/lib/imageFallback";
 
 const mockBookings = [
   { id: "BK-001", tourId: 1, tourTitle: "Snorkel con tiburón ballena", date: "2026-05-20", adults: 2, children: 1, total: 5400, status: "confirmed", image: tours[0].image },
@@ -123,7 +124,7 @@ export default function ProfilePage() {
                 <div className="space-y-4">
                   {filteredBookings.map((b) => (
                     <div key={b.id} className="bg-white rounded-2xl border border-gray-100 p-4 md:p-5 flex flex-col sm:flex-row gap-4">
-                      <img src={b.image} alt={b.tourTitle} className="w-full sm:w-32 h-24 object-cover rounded-xl shrink-0" />
+                      <img src={b.image} alt={b.tourTitle} onError={onTourImageError} className="w-full sm:w-32 h-24 object-cover rounded-xl shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-3 mb-2">
                           <h3 className="text-base font-semibold text-charcoal truncate">{b.tourTitle}</h3>
@@ -177,7 +178,7 @@ export default function ProfilePage() {
                   {mockFavorites.map((tour) => (
                     <div key={tour.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                       <div className="relative">
-                        <img src={tour.image} alt={tour.title} className="w-full h-40 object-cover" />
+                        <img src={tour.image} alt={tour.title} onError={onTourImageError} className="w-full h-40 object-cover" />
                         <button className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 text-coral">
                           <i className="ri-heart-3-fill" />
                         </button>

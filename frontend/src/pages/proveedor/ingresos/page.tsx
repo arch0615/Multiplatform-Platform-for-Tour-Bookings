@@ -41,8 +41,16 @@ export default function ProveedorIngresosPage() {
     return () => { cancelled = true; };
   }, [t]);
 
+  // Format month labels from yearMonth so they follow the UI language.
+  // (Backend's `m.label` is always Spanish — see ProviderReportsService.cs.)
+  const shortMonthFmt = new Intl.DateTimeFormat(priceLocale, { month: "short" });
+  const longMonthFmt = new Intl.DateTimeFormat(priceLocale, { month: "short", year: "numeric" });
+  const monthLabel = (yearMonth: string, fmt = shortMonthFmt) => {
+    const [y, mo] = yearMonth.split("-");
+    return fmt.format(new Date(Number(y), Number(mo) - 1, 1));
+  };
   const chartData = data?.monthly.map((m) => ({
-    label: m.label.replace(".", "").slice(0, 6),
+    label: monthLabel(m.yearMonth),
     gross: m.gross,
     net: m.net,
     bookings: m.bookings,
@@ -51,7 +59,7 @@ export default function ProveedorIngresosPage() {
   return (
     <div className="min-h-screen bg-offwhite pt-14 md:pt-20 pb-12">
       <div className="w-full px-4 md:px-8 lg:px-12">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
             <ProviderSidebar />
             <div className="flex-1 min-w-0">
@@ -181,7 +189,7 @@ export default function ProveedorIngresosPage() {
                         <tbody>
                           {data.monthly.map((m) => (
                             <tr key={m.yearMonth} className="border-b border-gray-50 last:border-0">
-                              <td className="py-3 pr-4 font-medium text-charcoal">{m.label}</td>
+                              <td className="py-3 pr-4 font-medium text-charcoal">{monthLabel(m.yearMonth, longMonthFmt)}</td>
                               <td className="py-3 pr-4 text-right text-gray-600">{m.bookings}</td>
                               <td className="py-3 pr-4 text-right text-gray-600">{formatMoney(m.gross, priceLocale, data.currency)}</td>
                               <td className="py-3 pr-4 text-right text-gray-600">{formatMoney(m.commission, priceLocale, data.currency)}</td>

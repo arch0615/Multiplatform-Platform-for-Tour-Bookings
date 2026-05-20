@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import { tours } from "@/mocks/tours";
+import { onTourImageError } from "@/lib/imageFallback";
 
 export default function ReservarConfirmacionPage() {
   const { t } = useTranslation("booking");
@@ -20,7 +21,7 @@ export default function ReservarConfirmacionPage() {
           <div className="bg-white rounded-2xl border border-gray-100 p-6 md:p-8 text-left mb-6">
             <h2 className="text-base font-bold text-charcoal mb-4">{t("booking.orderDetails")}</h2>
             <div className="flex gap-4 mb-4">
-              <img src={tour.image} alt={tour.title} className="w-24 h-20 object-cover rounded-xl shrink-0" />
+              <img src={tour.image} alt={tour.title} onError={onTourImageError} className="w-24 h-20 object-cover rounded-xl shrink-0" />
               <div>
                 <h3 className="text-sm font-semibold text-charcoal">{tour.title}</h3>
                 <p className="text-xs text-gray-500">{tour.location}</p>

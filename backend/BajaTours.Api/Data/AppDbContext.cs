@@ -87,6 +87,7 @@ public class AppDbContext : DbContext
             e.HasIndex(b => b.Reference).IsUnique();
             e.Property(b => b.Reference).HasMaxLength(32).IsRequired();
             e.Property(b => b.Currency).HasMaxLength(3);
+            e.Property(b => b.Language).HasMaxLength(8).HasDefaultValue("es");
             e.Property(b => b.Subtotal).HasPrecision(10, 2);
             e.Property(b => b.CommissionAmount).HasPrecision(10, 2);
             e.Property(b => b.TotalPrice).HasPrecision(10, 2);

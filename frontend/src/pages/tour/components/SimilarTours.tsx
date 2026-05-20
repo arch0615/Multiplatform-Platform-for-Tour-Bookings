@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { listTours, type TourCategory, type TourListItem } from "@/lib/tours";
+import { onTourImageError } from "@/lib/imageFallback";
 
 interface SimilarToursProps {
   currentSlug: string;
@@ -51,6 +52,7 @@ export default function SimilarTours({ currentSlug, category, priceLocale }: Sim
                     src={tour.coverImageUrl ?? placeholderImage}
                     alt={tour.title}
                     loading="lazy"
+                    onError={onTourImageError}
                     className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
                   />
                   {isBestRated && (

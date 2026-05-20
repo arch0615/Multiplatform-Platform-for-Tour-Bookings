@@ -8,6 +8,7 @@ import { getTourBySlug, type TourDetail } from "@/lib/tours";
 import { useAuth } from "@/contexts/AuthContext";
 import AvailabilityPicker from "./components/AvailabilityPicker";
 import { type PublicAvailabilitySlot } from "@/lib/availability";
+import { onTourImageError } from "@/lib/imageFallback";
 
 export default function BookingPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -248,7 +249,7 @@ export default function BookingPage() {
                   <h2 className="text-lg font-bold text-charcoal">{t("booking.tourSummary")}</h2>
 
                   <div className="flex gap-4">
-                    {coverImage && <img src={coverImage} alt={tour.title} className="w-24 h-20 object-cover rounded-xl shrink-0" />}
+                    {coverImage && <img src={coverImage} alt={tour.title} onError={onTourImageError} className="w-24 h-20 object-cover rounded-xl shrink-0" />}
                     <div>
                       <h3 className="text-base font-semibold text-charcoal">{tour.title}</h3>
                       <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">

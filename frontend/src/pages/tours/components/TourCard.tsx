@@ -4,14 +4,12 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { TourListItem } from "@/lib/tours";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { TOUR_IMAGE_PLACEHOLDER, onTourImageError } from "@/lib/imageFallback";
 
 interface TourCardProps {
   tour: TourListItem;
   priceLocale: string;
 }
-
-const placeholderImage =
-  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80&auto=format&fit=crop";
 
 export default function TourCard({ tour, priceLocale }: TourCardProps) {
   const { t } = useTranslation();
@@ -45,9 +43,10 @@ export default function TourCard({ tour, priceLocale }: TourCardProps) {
     <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 hover:-translate-y-1 transition-all duration-300">
       <div className="relative h-48 md:h-52 overflow-hidden">
         <img
-          src={tour.coverImageUrl ?? placeholderImage}
+          src={tour.coverImageUrl ?? TOUR_IMAGE_PLACEHOLDER}
           alt={tour.title}
           loading="lazy"
+          onError={onTourImageError}
           className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
         />
         {isBestRated && (

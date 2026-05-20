@@ -79,4 +79,5 @@ export default {
   "profile.timeline.review_requested": "Review requested",
   "profile.timeline.booking_cancelled": "Booking cancelled",
   "profile.timeline.refund_processed": "Refund processed",
+  "profile.reviews": "reviews",
 };

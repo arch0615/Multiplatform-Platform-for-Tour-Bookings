@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { onTourImageError } from "@/lib/imageFallback";
 
 interface GalleryProps {
   images: string[];
@@ -34,6 +35,7 @@ export default function Gallery({ images, title }: GalleryProps) {
         <img
           src={images[selected]}
           alt={title}
+          onError={onTourImageError}
           className="w-full h-full object-cover object-top group-hover:scale-[1.02] transition-transform duration-500"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
@@ -65,6 +67,7 @@ export default function Gallery({ images, title }: GalleryProps) {
               <img
                 src={img}
                 alt={`${title} ${i + 1}`}
+                onError={onTourImageError}
                 className="w-full h-full object-cover object-top"
               />
             </button>
@@ -98,6 +101,7 @@ export default function Gallery({ images, title }: GalleryProps) {
           <img
             src={images[lbIndex]}
             alt={title}
+            onError={onTourImageError}
             className="max-w-[90vw] max-h-[80vh] object-contain rounded-lg"
             onClick={(e) => e.stopPropagation()}
           />

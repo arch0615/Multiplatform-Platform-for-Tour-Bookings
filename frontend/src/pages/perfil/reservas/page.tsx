@@ -4,9 +4,7 @@ import { Link } from "react-router-dom";
 import ClientSidebar from "../components/ClientSidebar";
 import { ApiError } from "@/lib/api";
 import { BookingStatus, listMyBookings, type Booking } from "@/lib/bookings";
-
-const placeholderImage =
-  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80&auto=format&fit=crop";
+import { TOUR_IMAGE_PLACEHOLDER, onTourImageError } from "@/lib/imageFallback";
 
 function isUpcoming(b: Booking, today: string): boolean {
   return b.status === BookingStatus.Pending
@@ -128,9 +126,10 @@ export default function PerfilReservasPage() {
                     {filtered.map((b) => (
                       <div key={b.id} className="flex flex-col sm:flex-row gap-4 p-4 bg-gray-50 rounded-xl">
                         <img
-                          src={b.tour.coverImageUrl ?? placeholderImage}
+                          src={b.tour.coverImageUrl ?? TOUR_IMAGE_PLACEHOLDER}
                           alt={b.tour.title}
                           loading="lazy"
+                          onError={onTourImageError}
                           className="w-full sm:w-32 h-24 object-cover rounded-lg shrink-0"
                         />
                         <div className="flex-1 min-w-0">

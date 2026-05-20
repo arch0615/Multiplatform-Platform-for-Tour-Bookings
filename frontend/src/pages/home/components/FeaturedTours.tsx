@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { tours } from "@/mocks/tours";
+import { onTourImageError } from "@/lib/imageFallback";
 
 export default function FeaturedTours() {
   const { t, i18n } = useTranslation("home");
@@ -67,6 +68,7 @@ export default function FeaturedTours() {
                 <img
                   src={tour.image}
                   alt={tour.title}
+                  onError={onTourImageError}
                   className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
                 />
                 {tour.bestRated && (

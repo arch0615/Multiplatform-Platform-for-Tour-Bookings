@@ -110,7 +110,7 @@ public class ProviderReportsService : IProviderReportsService
                 var ym = kvp.Key;
                 var parts = ym.Split('-');
                 var dt = new DateTime(int.Parse(parts[0]), int.Parse(parts[1]), 1);
-                var label = dt.ToString("MMM yyyy", CultureInfo.GetCultureInfo("es-MX"));
+                var label = dt.ToString("MMM yyyy", CultureInfo.CurrentCulture);
                 return new EarningsMonthDto(
                     ym, label,
                     kvp.Value.Gross,

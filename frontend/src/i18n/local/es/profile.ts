@@ -138,4 +138,5 @@ export default {
   "profile.timeline.review_requested": "Reseña solicitada",
   "profile.timeline.booking_cancelled": "Reserva cancelada",
   "profile.timeline.refund_processed": "Reembolso procesado",
+  "profile.reviews": "reseñas",
 };

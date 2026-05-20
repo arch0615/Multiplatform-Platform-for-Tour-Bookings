@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import { ApiError } from "@/lib/api";
 import { BookingStatus, getBooking, PaymentStatus, type Booking } from "@/lib/bookings";
+import { TOUR_IMAGE_PLACEHOLDER, onTourImageError } from "@/lib/imageFallback";
 
-const placeholderImage =
-  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80&auto=format&fit=crop";
+const placeholderImage = TOUR_IMAGE_PLACEHOLDER;
 
 function paymentMethodLabel(b: Booking): string {
   if (!b.payment) return "—";
@@ -113,6 +113,7 @@ export default function VoucherPage() {
                 src={booking.tour.coverImageUrl ?? placeholderImage}
                 alt={booking.tour.title}
                 loading="lazy"
+                onError={onTourImageError}
                 className="w-28 h-24 object-cover rounded-xl shrink-0"
               />
               <div className="min-w-0">

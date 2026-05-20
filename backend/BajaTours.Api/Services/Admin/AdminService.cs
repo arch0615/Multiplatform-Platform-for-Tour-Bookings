@@ -226,7 +226,7 @@ public class AdminService : IAdminService
             {
                 var parts = kvp.Key.Split('-');
                 var dt = new DateTime(int.Parse(parts[0]), int.Parse(parts[1]), 1);
-                var label = dt.ToString("MMM yyyy", CultureInfo.GetCultureInfo("es-MX"));
+                var label = dt.ToString("MMM yyyy", CultureInfo.CurrentCulture);
                 return new DashboardMonthDto(kvp.Key, label, kvp.Value.Gross, kvp.Value.Commission, kvp.Value.N);
             })
             .ToList();

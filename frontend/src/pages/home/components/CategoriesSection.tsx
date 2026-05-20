@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { categories } from "@/mocks/categories";
+import { onTourImageError } from "@/lib/imageFallback";
 
 export default function CategoriesSection() {
   const { t } = useTranslation("home");
@@ -17,22 +18,25 @@ export default function CategoriesSection() {
             <Link
               key={cat.id}
               to={`/categoria/${cat.id === "adventure" ? "aventura" : cat.id === "cultural" ? "cultural" : cat.id === "gastronomic" ? "gastronomico" : cat.id === "transport" ? "transporte" : cat.id === "housing" ? "hospedaje" : cat.id === "fishing" ? "pesca" : cat.id}`}
-              className="group flex flex-col items-center text-center bg-white rounded-2xl p-5 md:p-6 hover:-translate-y-1 transition-all duration-300 border border-gray-100"
+              className="group flex flex-col bg-white rounded-2xl overflow-hidden hover:-translate-y-1 transition-all duration-300 border border-gray-100"
             >
-              <div
-                className="w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110"
-                style={{ backgroundColor: cat.bgColor }}
-              >
-                <div className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center">
-                  <i className={`${cat.icon} text-xl md:text-2xl`} style={{ color: cat.color }} />
-                </div>
+              <div className="relative w-full aspect-[3/2] overflow-hidden bg-gray-100">
+                <img
+                  src={cat.image}
+                  alt={t(`categories.${cat.id}`)}
+                  loading="lazy"
+                  onError={onTourImageError}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
               </div>
-              <h3 className="text-sm md:text-base font-semibold text-charcoal mb-1">
-                {t(`categories.${cat.id}`)}
-              </h3>
-              <p className="text-xs text-gray-500">
-                {cat.tourCount} {t("categories.tourCount")}
-              </p>
+              <div className="px-4 py-3 md:px-5 md:py-4 text-center">
+                <h3 className="text-sm md:text-base font-semibold text-charcoal mb-1">
+                  {t(`categories.${cat.id}`)}
+                </h3>
+                <p className="text-xs text-gray-500">
+                  {cat.tourCount} {t("categories.tourCount")}
+                </p>
+              </div>
             </Link>
           ))}
         </div>

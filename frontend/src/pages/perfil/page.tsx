@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import ClientSidebar from "./components/ClientSidebar";
 import { tours } from "@/mocks/tours";
+import { onTourImageError } from "@/lib/imageFallback";
 
 const mockBookings = [
   { id: "BK-001", tourId: 1, tourTitle: "Snorkel con tiburón ballena", date: "2026-05-20", adults: 2, children: 1, total: 5400, status: "confirmed", image: tours[0].image },
@@ -90,7 +91,7 @@ export default function PerfilPage() {
                 <div className="space-y-4">
                   {mockBookings.slice(0, 2).map((b) => (
                     <div key={b.id} className="flex flex-col sm:flex-row gap-4 p-3 bg-gray-50 rounded-xl">
-                      <img src={b.image} alt={b.tourTitle} className="w-full sm:w-28 h-20 object-cover rounded-lg shrink-0" />
+                      <img src={b.image} alt={b.tourTitle} onError={onTourImageError} className="w-full sm:w-28 h-20 object-cover rounded-lg shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <h3 className="text-sm font-semibold text-charcoal truncate">{b.tourTitle}</h3>
@@ -119,7 +120,7 @@ export default function PerfilPage() {
                   {mockFavorites.map((tour) => (
                     <Link to={`/tours/${tour.slug}`} key={tour.id} className="group">
                       <div className="relative rounded-xl overflow-hidden mb-2">
-                        <img src={tour.image} alt={tour.title} className="w-full h-32 object-cover group-hover:scale-105 transition-transform" />
+                        <img src={tour.image} alt={tour.title} onError={onTourImageError} className="w-full h-32 object-cover group-hover:scale-105 transition-transform" />
                       </div>
                       <h3 className="text-sm font-semibold text-charcoal truncate">{tour.title}</h3>
                       <p className="text-xs text-gray-500">{tour.location}</p>

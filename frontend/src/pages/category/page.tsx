@@ -4,6 +4,7 @@ import { useParams, Link } from "react-router-dom";
 import { categories } from "@/mocks/categories";
 import { tours, mockTourToListItem } from "@/mocks/tours";
 import TourCard from "@/pages/tours/components/TourCard";
+import { onTourImageError } from "@/lib/imageFallback";
 
 const slugToName: Record<string, string> = {
   aventura: "Aventura",
@@ -15,12 +16,12 @@ const slugToName: Record<string, string> = {
 };
 
 const categoryImages: Record<string, string> = {
-  aventura: "https://readdy.ai/api/search-image?query=Exciting%20adventure%20activities%20in%20Baja%20California%20Sur%20Mexico%20including%20kayaking%2C%20ATV%20riding%20and%20whale%20watching%20with%20dramatic%20desert%20and%20ocean%20landscape%2C%20turquoise%20water%2C%20action%20sports%20travel%20photography%2C%20warm%20vibrant%20colors%2C%20no%20text&width=1400&height=500&seq=55&orientation=landscape",
-  cultural: "https://readdy.ai/api/search-image?query=Colorful%20Mexican%20colonial%20architecture%20and%20traditional%20cultural%20scene%20in%20Baja%20California%20Sur%20with%20artisan%20pottery%2C%20local%20market%20stalls%2C%20warm%20earth%20tones%2C%20authentic%20cultural%20heritage%20photography%2C%20no%20text&width=1400&height=500&seq=56&orientation=landscape",
-  gastronomico: "https://readdy.ai/api/search-image?query=Delicious%20Mexican%20gourmet%20seafood%20and%20street%20food%20spread%20in%20Baja%20California%20Sur%20with%20fresh%20fish%20tacos%2C%20local%20wine%2C%20vibrant%20ingredients%20on%20rustic%20wooden%20table%2C%20warm%20sunset%20lighting%2C%20food%20photography%2C%20no%20text&width=1400&height=500&seq=57&orientation=landscape",
-  transporte: "https://readdy.ai/api/search-image?query=Luxury%20shuttle%20van%20driving%20along%20scenic%20coastal%20highway%20in%20Baja%20California%20Sur%20Mexico%20with%20desert%20mountains%20and%20turquoise%20ocean%20views%2C%20professional%20transport%20service%20travel%20photography%2C%20no%20text&width=1400&height=500&seq=58&orientation=landscape",
-  hospedaje: "https://readdy.ai/api/search-image?query=Beautiful%20beachfront%20vacation%20rental%20home%20in%20Baja%20California%20Sur%20Mexico%20with%20private%20pool%2C%20palm%20trees%2C%20modern%20architecture%20and%20Pacific%20Ocean%20views%2C%20luxury%20vacation%20rental%20photography%2C%20warm%20golden%20light%2C%20no%20text&width=1400&height=500&seq=59&orientation=landscape",
-  pesca: "https://readdy.ai/api/search-image?query=Sport%20fishing%20boat%20on%20deep%20blue%20ocean%20in%20Cabo%20San%20Lucas%20Baja%20California%20Sur%20with%20fishing%20gear%20and%20majestic%20marlin%2C%20dramatic%20action%20photography%20with%20clear%20sky%20and%20turquoise%20water%2C%20no%20text&width=1400&height=500&seq=60&orientation=landscape",
+  aventura: "https://images.unsplash.com/photo-1502943693086-33b5b1cfdf2f?w=1920&q=80&auto=format&fit=crop",
+  cultural: "https://images.unsplash.com/photo-1518105779142-d975f22f1b0a?w=1920&q=80&auto=format&fit=crop",
+  gastronomico: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1920&q=80&auto=format&fit=crop",
+  transporte: "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=1920&q=80&auto=format&fit=crop",
+  hospedaje: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1920&q=80&auto=format&fit=crop",
+  pesca: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=1920&q=80&auto=format&fit=crop",
 };
 
 export default function CategoryPage() {
@@ -57,7 +58,7 @@ export default function CategoryPage() {
     <div className="min-h-screen bg-offwhite pt-14 md:pt-20">
       {/* Hero */}
       <div className="relative h-[320px] md:h-[420px] overflow-hidden">
-        <img src={heroImg} alt={categoryName} className="w-full h-full object-cover" />
+        <img src={heroImg} alt={categoryName} onError={onTourImageError} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/40" />
         <div className="absolute inset-0 flex items-end pb-10 md:pb-14 px-4 md:px-8 lg:px-12">
           <div className="max-w-5xl mx-auto w-full">

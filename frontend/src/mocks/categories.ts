@@ -2,49 +2,43 @@ export const categories = [
   {
     id: "adventure",
     name: "Aventura",
-    icon: "ri-compass-3-line",
     tourCount: 42,
-    color: "#0B4F6C",
-    bgColor: "#E8F4F8",
+    image:
+      "https://images.unsplash.com/photo-1502943693086-33b5b1cfdf2f?w=800&q=80&auto=format&fit=crop",
   },
   {
     id: "cultural",
     name: "Cultural",
-    icon: "ri-ancient-pavilion-line",
     tourCount: 18,
-    color: "#8B6914",
-    bgColor: "#FDF6E3",
+    image:
+      "https://images.unsplash.com/photo-1545987796-200677ee1011?w=800&q=80&auto=format&fit=crop",
   },
   {
     id: "gastronomic",
     name: "Gastronómico",
-    icon: "ri-restaurant-line",
     tourCount: 24,
-    color: "#B45309",
-    bgColor: "#FFF7ED",
+    image:
+      "https://images.unsplash.com/photo-1565299543923-37dd37887442?w=800&q=80&auto=format&fit=crop",
   },
   {
     id: "transport",
     name: "Transporte",
-    icon: "ri-bus-line",
     tourCount: 15,
-    color: "#0F766E",
-    bgColor: "#F0FDFA",
+    image:
+      "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=800&q=80&auto=format&fit=crop",
   },
   {
     id: "housing",
     name: "Renta de Casas",
-    icon: "ri-home-smile-line",
     tourCount: 36,
-    color: "#7C3AED",
-    bgColor: "#F5F3FF",
+    image:
+      "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80&auto=format&fit=crop",
   },
   {
     id: "fishing",
     name: "Pesca",
-    icon: "ri-ship-line",
     tourCount: 12,
-    color: "#0369A1",
-    bgColor: "#F0F9FF",
+    image:
+      "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&q=80&auto=format&fit=crop",
   },
 ];

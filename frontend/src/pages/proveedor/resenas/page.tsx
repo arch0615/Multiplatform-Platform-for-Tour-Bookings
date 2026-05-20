@@ -10,9 +10,9 @@ function sourceLabel(s: ReviewSource): string | null {
   return null;
 }
 
-function statusBadge(s: ReviewStatus): { label: string; className: string } | null {
-  if (s === ReviewStatus.Pending) return { label: "Pendiente", className: "bg-sand/60 text-charcoal" };
-  if (s === ReviewStatus.Rejected) return { label: "Rechazada", className: "bg-coral/10 text-coral" };
+function statusBadge(s: ReviewStatus): { labelKey: string; className: string } | null {
+  if (s === ReviewStatus.Pending) return { labelKey: "provider.reviewPending", className: "bg-sand/60 text-charcoal" };
+  if (s === ReviewStatus.Rejected) return { labelKey: "provider.reviewRejected", className: "bg-coral/10 text-coral" };
   return null; // approved → no badge, treat as default state
 }
 
@@ -32,7 +32,7 @@ export default function ProveedorResenasPage() {
       .then((items) => { if (!cancelled) setReviews(items); })
       .catch((err) => {
         if (cancelled) return;
-        setError(err instanceof ApiError ? err.message : "No pudimos cargar tus reseñas.");
+        setError(err instanceof ApiError ? err.message : t("provider.loadReviewsError"));
         setReviews([]);
       })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -48,7 +48,7 @@ export default function ProveedorResenasPage() {
   return (
     <div className="min-h-screen bg-offwhite pt-14 md:pt-20 pb-12">
       <div className="w-full px-4 md:px-8 lg:px-12">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
             <ProviderSidebar />
             <div className="flex-1 min-w-0">
@@ -64,15 +64,15 @@ export default function ProveedorResenasPage() {
                     {stats.avg > 0 ? stats.avg.toFixed(1) : "—"}
                     <span className="text-xs text-coral ml-1"><i className="ri-star-fill" /></span>
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">Calificación promedio</p>
+                  <p className="text-xs text-gray-500 mt-1">{t("provider.avgRating")}</p>
                 </div>
                 <div className="bg-white rounded-2xl border border-gray-100 p-5">
                   <p className="text-2xl font-bold text-charcoal">{stats.approved}</p>
-                  <p className="text-xs text-gray-500 mt-1">Reseñas aprobadas</p>
+                  <p className="text-xs text-gray-500 mt-1">{t("provider.reviewsApproved")}</p>
                 </div>
                 <div className="bg-white rounded-2xl border border-gray-100 p-5">
                   <p className="text-2xl font-bold text-charcoal">{stats.total}</p>
-                  <p className="text-xs text-gray-500 mt-1">Total</p>
+                  <p className="text-xs text-gray-500 mt-1">{t("provider.reviewsTotal")}</p>
                 </div>
               </div>
 
@@ -87,7 +87,7 @@ export default function ProveedorResenasPage() {
                   <div className="w-12 h-12 flex items-center justify-center mx-auto mb-3 text-gray-300">
                     <i className="ri-chat-3-line text-3xl" />
                   </div>
-                  <p className="text-sm text-gray-500">Aún no tienes reseñas. Cuando tus clientes completen sus tours podrán dejarte una.</p>
+                  <p className="text-sm text-gray-500">{t("provider.noReviewsYet")}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -109,10 +109,10 @@ export default function ProveedorResenasPage() {
                                 <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">{src}</span>
                               )}
                               {!src && r.status === ReviewStatus.Approved && (
-                                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-ocean/10 text-ocean">Cliente verificado</span>
+                                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-ocean/10 text-ocean">{t("provider.verifiedCustomer")}</span>
                               )}
                               {st && (
-                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${st.className}`}>{st.label}</span>
+                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${st.className}`}>{t(st.labelKey)}</span>
                               )}
                               <span className="text-xs text-gray-400">{dateStr}</span>
                             </div>

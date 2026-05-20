@@ -4,9 +4,9 @@ import { Link, useParams } from "react-router-dom";
 import ClientSidebar from "../../components/ClientSidebar";
 import { ApiError } from "@/lib/api";
 import { BookingStatus, getBooking, PaymentStatus, type Booking } from "@/lib/bookings";
+import { TOUR_IMAGE_PLACEHOLDER, onTourImageError } from "@/lib/imageFallback";
 
-const placeholderImage =
-  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80&auto=format&fit=crop";
+const placeholderImage = TOUR_IMAGE_PLACEHOLDER;
 
 type TimelineStep = { event: string; date: string | null; done: boolean };
 
@@ -144,6 +144,7 @@ export default function PerfilReservaDetallePage() {
                     src={booking.tour.coverImageUrl ?? placeholderImage}
                     alt={booking.tour.title}
                     loading="lazy"
+                    onError={onTourImageError}
                     className="w-full sm:w-48 h-32 object-cover rounded-xl shrink-0"
                   />
                   <div className="flex-1 min-w-0">

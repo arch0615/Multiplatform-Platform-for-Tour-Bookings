@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
+import { onTourImageError } from "@/lib/imageFallback";
 
 const heroImages = [
-  "https://readdy.ai/api/search-image?query=Dramatic%20golden%20hour%20sunset%20view%20of%20El%20Arco%20rock%20arch%20at%20Lands%20End%20in%20Cabo%20San%20Lucas%20Baja%20California%20Sur%20Mexico%20with%20tour%20boats%20in%20turquoise%20water%2C%20warm%20orange%20and%20pink%20sky%2C%20iconic%20coastal%20landmark%2C%20travel%20photography%20with%20vivid%20colors%20and%20high%20contrast&width=1600&height=900&seq=17&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=Breathtaking%20panoramic%20view%20of%20Isla%20Espiritu%20Santo%20in%20Baja%20California%20Sur%20Mexico%20with%20pristine%20white%20sand%20beach%2C%20crystal%20clear%20turquoise%20Sea%20of%20Cortez%20water%2C%20dramatic%20volcanic%20rock%20formations%20and%20lush%20vegetation%2C%20aerial%20coastal%20photography%20with%20vibrant%20natural%20colors&width=1600&height=900&seq=18&orientation=landscape",
-  "https://readdy.ai/api/search-image?query=Colorful%20sea%20kayaks%20paddling%20on%20mirror-calm%20turquoise%20water%20in%20Baja%20California%20Sur%20Mexico%20at%20sunrise%20with%20golden%20light%20reflecting%20on%20the%20Sea%20of%20Cortez%2C%20distant%20desert%20mountains%20and%20clear%20sky%2C%20outdoor%20adventure%20photography%20with%20warm%20tones&width=1600&height=900&seq=19&orientation=landscape",
+  "https://images.unsplash.com/photo-1518391846015-55a9cc003b25?w=1920&q=80&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=1920&q=80&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1502943693086-33b5b1cfdf2f?w=1920&q=80&auto=format&fit=crop",
 ];
 
 export default function HeroSection() {
@@ -64,6 +65,7 @@ export default function HeroSection() {
           <img
             src={img}
             alt="Baja California Sur"
+            onError={onTourImageError}
             className="w-full h-full object-cover object-top"
           />
         </div>

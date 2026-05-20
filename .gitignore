@@ -30,6 +30,11 @@ pnpm-debug.log*
 .env.*.local
 *.local
 
+# ---------- Local secrets / dev credentials ----------
+CREDENTIALS.txt
+*.credentials.txt
+*.secrets.txt
+
 # =========================================================
 # .NET / Backend (BajaTours.Api)
 # =========================================================

@@ -5,9 +5,9 @@ import ClientSidebar from "../components/ClientSidebar";
 import { ApiError } from "@/lib/api";
 import { listMyFavorites, type Favorite } from "@/lib/favorites";
 import { useFavorites } from "@/contexts/FavoritesContext";
+import { TOUR_IMAGE_PLACEHOLDER, onTourImageError } from "@/lib/imageFallback";
 
-const placeholderImage =
-  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80&auto=format&fit=crop";
+const placeholderImage = TOUR_IMAGE_PLACEHOLDER;
 
 export default function PerfilFavoritosPage() {
   const { t, i18n } = useTranslation("profile");
@@ -82,6 +82,7 @@ export default function PerfilFavoritosPage() {
                             src={tour.coverImageUrl ?? placeholderImage}
                             alt={tour.title}
                             loading="lazy"
+                            onError={onTourImageError}
                             className="w-full h-40 object-cover"
                           />
                           <button

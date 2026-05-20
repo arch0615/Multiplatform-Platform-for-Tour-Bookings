@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { testimonials } from "@/mocks/testimonials";
+import { onTourImageError } from "@/lib/imageFallback";
 
 export default function Testimonials() {
   const { t } = useTranslation("home");
@@ -49,6 +50,7 @@ export default function Testimonials() {
               <img
                 src={testimonial.avatar}
                 alt={testimonial.name}
+                onError={onTourImageError}
                 className="w-12 h-12 rounded-full object-cover"
               />
               <div className="text-left">

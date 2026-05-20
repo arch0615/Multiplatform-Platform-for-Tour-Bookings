@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { onTourImageError } from "@/lib/imageFallback";
 
 const benefits = [
   { icon: "ri-global-line", title: "provider.b1Title", desc: "provider.b1Desc" },
@@ -25,8 +26,9 @@ export default function ProviderLandingPage() {
       {/* Hero */}
       <div className="relative h-[400px] md:h-[520px] overflow-hidden">
         <img
-          src="https://readdy.ai/api/search-image?query=Happy%20local%20tour%20guide%20showing%20beautiful%20desert%20and%20ocean%20landscape%20to%20a%20small%20group%20of%20tourists%20in%20Baja%20California%20Sur%20Mexico%2C%20authentic%20travel%20experience%20with%20warm%20golden%20light%2C%20adventure%20tourism%20photography%2C%20no%20text&width=1400&height=600&seq=80&orientation=landscape"
+          src="https://images.unsplash.com/photo-1530541930197-ff16ac917b0e?w=1920&q=80&auto=format&fit=crop"
           alt="Provider"
+          onError={onTourImageError}
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/40" />
@@ -97,8 +99,9 @@ export default function ProviderLandingPage() {
           <div className="bg-white rounded-2xl border border-gray-100 p-8 md:p-10 mb-16">
             <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center">
               <img
-                src="https://readdy.ai/api/search-image?query=Professional%20headshot%20portrait%20of%20a%20friendly%20Mexican%20man%20in%20his%2040s%20with%20warm%20smile%2C%20wearing%20casual%20outdoor%20gear%2C%20neutral%20warm%20studio%20background%2C%20soft%20natural%20lighting%2C%20tourism%20provider%20portrait%20photography&width=200&height=200&seq=81&orientation=squarish"
+                src="https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=200&q=80&auto=format&fit=facearea&facepad=2.5"
                 alt="Provider"
+                onError={onTourImageError}
                 className="w-20 h-20 rounded-full object-cover shrink-0"
               />
               <div>

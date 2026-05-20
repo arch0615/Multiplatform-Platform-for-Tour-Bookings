@@ -7,7 +7,6 @@ import HeroSection from "./components/HeroSection";
 import CategoriesSection from "./components/CategoriesSection";
 import FeaturedTours from "./components/FeaturedTours";
 import DestinationsSection from "./components/DestinationsSection";
-import HowItWorks from "./components/HowItWorks";
 import Testimonials from "./components/Testimonials";
 import ProviderCTA from "./components/ProviderCTA";
 
@@ -24,7 +23,6 @@ export default function Home() {
         <CategoriesSection />
         <FeaturedTours />
         <DestinationsSection />
-        <HowItWorks />
         <Testimonials />
         <ProviderCTA />
       </main>

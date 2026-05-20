@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { BookingStatus, getBooking, PaymentStatus, type Booking } from "@/lib/bookings";
 import { ApiError } from "@/lib/api";
+import { onTourImageError } from "@/lib/imageFallback";
 
 type View = "loading" | "approved" | "pending" | "rejected" | "error";
 
@@ -118,7 +119,7 @@ function BookingCard({ booking, t, priceLocale }: SectionProps) {
     <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6 text-left">
       <div className="flex gap-4 mb-4">
         {booking.tour.coverImageUrl && (
-          <img src={booking.tour.coverImageUrl} alt={booking.tour.title} className="w-24 h-20 object-cover rounded-xl shrink-0" />
+          <img src={booking.tour.coverImageUrl} alt={booking.tour.title} onError={onTourImageError} className="w-24 h-20 object-cover rounded-xl shrink-0" />
         )}
         <div>
           <h3 className="text-base font-semibold text-charcoal">{booking.tour.title}</h3>

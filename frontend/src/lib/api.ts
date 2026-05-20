@@ -1,7 +1,16 @@
+import i18n from "@/i18n";
 import { authStorage, type AuthTokens } from "./auth-storage";
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "")
   ?? "http://localhost:5080/api";
+
+// Map the UI language to a full BCP 47 tag so the backend's RequestLocalization
+// middleware (configured for es-MX / en-US) can match it.
+function acceptLanguage(): string {
+  const lang = i18n.language ?? "es";
+  if (lang.startsWith("en")) return "en-US,en;q=0.9";
+  return "es-MX,es;q=0.9";
+}
 
 export class ApiError extends Error {
   status: number;
@@ -36,7 +45,7 @@ async function refreshTokens(): Promise<AuthTokens | null> {
     try {
       const res = await fetch(`${baseUrl}/auth/refresh`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Accept-Language": acceptLanguage() },
         body: JSON.stringify({ refreshToken: current.refreshToken }),
       });
       if (!res.ok) {
@@ -81,7 +90,10 @@ export async function api<T = unknown>(path: string, options: ApiOptions = {}): 
   const { method = "GET", body, auth = true, signal } = options;
 
   const send = async (token: string | null): Promise<Response> => {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Accept-Language": acceptLanguage(),
+    };
     if (auth && token) headers["Authorization"] = `Bearer ${token}`;
     return fetch(`${baseUrl}${path}`, {
       method,

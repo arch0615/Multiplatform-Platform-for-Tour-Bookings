@@ -16,6 +16,9 @@ public class Booking
     public decimal CommissionAmount { get; set; }
     public decimal TotalPrice { get; set; }
     public string Currency { get; set; } = "MXN";
+    // BCP-47 short tag ("es", "en") captured at checkout from Accept-Language.
+    // Drives recipient-facing email localization. Existing rows default to "es".
+    public string Language { get; set; } = "es";
     public string? CouponCode { get; set; }
     public decimal DiscountAmount { get; set; }
     public string ContactName { get; set; } = string.Empty;

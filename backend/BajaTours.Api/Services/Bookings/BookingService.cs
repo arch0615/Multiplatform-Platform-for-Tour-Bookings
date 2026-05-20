@@ -33,6 +33,7 @@ public class BookingService : IBookingService
     private readonly IAvailabilityService _availability;
     private readonly PaymentsOptions _payments;
     private readonly ILogger<BookingService> _logger;
+    private readonly IHttpContextAccessor _http;
 
     public BookingService(
         AppDbContext db,
@@ -41,7 +42,8 @@ public class BookingService : IBookingService
         ICouponsService coupons,
         IAvailabilityService availability,
         IOptions<PaymentsOptions> payments,
-        ILogger<BookingService> logger)
+        ILogger<BookingService> logger,
+        IHttpContextAccessor http)
     {
         _db = db;
         _mp = mp;
@@ -50,6 +52,22 @@ public class BookingService : IBookingService
         _availability = availability;
         _payments = payments.Value;
         _logger = logger;
+        _http = http;
+    }
+
+    // Maps the caller's Accept-Language to a short tag we persist on the booking.
+    // RequestLocalization middleware has already validated the culture, so we
+    // can lean on CurrentCulture.TwoLetterISOLanguageName for the canonical form.
+    private string ResolveBookingLanguage()
+    {
+        // Prefer the negotiated CurrentCulture (set by UseRequestLocalization above
+        // the controller), falling back to a raw Accept-Language sniff and finally to "es".
+        var negotiated = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
+        if (negotiated == "en") return "en";
+        if (negotiated == "es") return "es";
+        var header = _http.HttpContext?.Request.Headers.AcceptLanguage.ToString() ?? "";
+        if (header.StartsWith("en", StringComparison.OrdinalIgnoreCase)) return "en";
+        return "es";
     }
 
     public async Task<CreateBookingResponse> CreateAsync(Guid userId, CreateBookingRequest req, CancellationToken ct)
@@ -134,6 +152,7 @@ public class BookingService : IBookingService
             ContactEmail = req.ContactEmail.Trim().ToLowerInvariant(),
             ContactPhone = req.ContactPhone,
             Notes = req.Notes,
+            Language = ResolveBookingLanguage(),
             Status = BookingStatus.Pending
         };
 

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { ApiError } from "@/lib/api";
 import { uploadImage } from "@/lib/files";
 import { TourCategory } from "@/lib/tours";
+import { onTourImageError } from "@/lib/imageFallback";
 import {
   TourStatus,
   type ProviderTour,
@@ -374,7 +375,7 @@ export default function ProductForm({ initial }: ProductFormProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {form.imageUrls.map((url, i) => (
               <div key={`${url}-${i}`} className="flex items-center gap-3 border border-gray-100 rounded-lg p-2">
-                <img src={url} alt="" loading="lazy" className="w-16 h-12 object-cover rounded shrink-0" />
+                <img src={url} alt="" loading="lazy" onError={onTourImageError} className="w-16 h-12 object-cover rounded shrink-0" />
                 <span className="text-xs text-gray-500 truncate flex-1">{url}</span>
                 <div className="flex flex-col gap-1 shrink-0">
                   <button type="button" onClick={() => moveImage(i, -1)} disabled={i === 0} className="text-xs text-gray-400 hover:text-charcoal disabled:opacity-30">

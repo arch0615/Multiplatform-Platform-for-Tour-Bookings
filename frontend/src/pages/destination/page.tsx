@@ -4,6 +4,7 @@ import { useParams, Link } from "react-router-dom";
 import { destinations } from "@/mocks/destinations";
 import { tours, mockTourToListItem } from "@/mocks/tours";
 import TourCard from "@/pages/tours/components/TourCard";
+import { onTourImageError } from "@/lib/imageFallback";
 
 const destinationContent: Record<string, { title: string; desc: string; facts: string[] }> = {
   "la-paz": {
@@ -70,7 +71,7 @@ export default function DestinationPage() {
     <div className="min-h-screen bg-offwhite pt-14 md:pt-20">
       {/* Hero */}
       <div className="relative h-[360px] md:h-[480px] overflow-hidden">
-        <img src={destData.image} alt={destData.name} className="w-full h-full object-cover" />
+        <img src={destData.image} alt={destData.name} onError={onTourImageError} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/40" />
         <div className="absolute inset-0 flex items-end pb-10 md:pb-14 px-4 md:px-8 lg:px-12">
           <div className="max-w-5xl mx-auto w-full">

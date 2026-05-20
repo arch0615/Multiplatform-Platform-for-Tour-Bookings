@@ -1,11 +1,12 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { onTourImageError } from "@/lib/imageFallback";
 
 const team = [
-  { name: "Carlos Mendoza", role: "Founder & CEO", img: "https://readdy.ai/api/search-image?query=Professional%20headshot%20portrait%20of%20a%20confident%20Mexican%20businessman%20in%20his%2040s%20with%20warm%20smile%2C%20wearing%20casual%20linen%20shirt%2C%20neutral%20beige%20studio%20background%2C%20soft%20natural%20lighting%2C%20corporate%20portrait%20photography%20style&width=200&height=200&seq=50&orientation=squarish" },
-  { name: "Ana López", role: "Operations Director", img: "https://readdy.ai/api/search-image?query=Professional%20headshot%20portrait%20of%20a%20friendly%20Mexican%20woman%20in%20her%2030s%20with%20confident%20smile%2C%20wearing%20turquoise%20blouse%2C%20neutral%20warm%20studio%20background%2C%20soft%20natural%20lighting%2C%20corporate%20portrait%20photography&width=200&height=200&seq=51&orientation=squarish" },
-  { name: "Miguel Torres", role: "Head of Partnerships", img: "https://readdy.ai/api/search-image?query=Professional%20headshot%20portrait%20of%20a%20friendly%20Mexican%20man%20in%20his%2030s%20with%20short%20beard%2C%20wearing%20white%20polo%20shirt%2C%20neutral%20warm%20studio%20background%2C%20soft%20natural%20lighting%2C%20corporate%20portrait%20photography&width=200&height=200&seq=52&orientation=squarish" },
-  { name: "Sofia Ramírez", role: "Customer Experience Lead", img: "https://readdy.ai/api/search-image?query=Professional%20headshot%20portrait%20of%20a%20warm%20Mexican%20woman%20in%20her%20late%2020s%20with%20friendly%20expression%2C%20wearing%20coral%20colored%20top%2C%20neutral%20warm%20studio%20background%2C%20soft%20natural%20lighting%2C%20corporate%20portrait%20photography&width=200&height=200&seq=53&orientation=squarish" },
+  { name: "Carlos Mendoza", role: "Founder & CEO", img: "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=200&q=80&auto=format&fit=facearea&facepad=2.5" },
+  { name: "Ana López", role: "Operations Director", img: "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=200&q=80&auto=format&fit=facearea&facepad=2.5" },
+  { name: "Miguel Torres", role: "Head of Partnerships", img: "https://images.unsplash.com/photo-1503443207922-dff7d543fd0e?w=200&q=80&auto=format&fit=facearea&facepad=2.5" },
+  { name: "Sofia Ramírez", role: "Customer Experience Lead", img: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=200&q=80&auto=format&fit=facearea&facepad=2.5" },
 ];
 
 const values = [
@@ -23,8 +24,9 @@ export default function AboutPage() {
       {/* Hero */}
       <div className="relative h-[360px] md:h-[480px] overflow-hidden">
         <img
-          src="https://readdy.ai/api/search-image?query=Stunning%20aerial%20panoramic%20view%20of%20Baja%20California%20Sur%20coastline%20with%20turquoise%20Sea%20of%20Cortez%2C%20desert%20mountains%2C%20white%20sand%20beaches%20and%20small%20boats%2C%20warm%20golden%20hour%20lighting%2C%20travel%20destination%20landscape%20photography%2C%20no%20text%2C%20no%20people%20close%20up&width=1400&height=500&seq=40&orientation=landscape"
+          src="https://images.unsplash.com/photo-1518391846015-55a9cc003b25?w=1920&q=80&auto=format&fit=crop"
           alt="Baja California Sur"
+          onError={onTourImageError}
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/40" />
@@ -47,8 +49,9 @@ export default function AboutPage() {
             </div>
             <div className="rounded-2xl overflow-hidden h-64 md:h-80">
               <img
-                src="https://readdy.ai/api/search-image?query=Group%20of%20happy%20tourists%20on%20a%20boat%20tour%20in%20the%20Sea%20of%20Cortez%20Baja%20California%20Sur%20Mexico%20enjoying%20the%20turquoise%20water%20and%20sunny%20day%2C%20authentic%20travel%20experience%20photography%20with%20warm%20natural%20lighting&width=600&height=400&seq=41&orientation=landscape"
+                src="https://images.unsplash.com/photo-1502920514313-52581002a659?w=1200&q=80&auto=format&fit=crop"
                 alt="Tourists enjoying Baja"
+                onError={onTourImageError}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -91,7 +94,7 @@ export default function AboutPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
               {team.map((m) => (
                 <div key={m.name} className="bg-white rounded-2xl border border-gray-100 p-5 text-center">
-                  <img src={m.img} alt={m.name} className="w-20 h-20 rounded-full object-cover mx-auto mb-4" />
+                  <img src={m.img} alt={m.name} onError={onTourImageError} className="w-20 h-20 rounded-full object-cover mx-auto mb-4" />
                   <h3 className="font-semibold text-charcoal text-sm">{m.name}</h3>
                   <p className="text-xs text-gray-500 mt-1">{m.role}</p>
                 </div>

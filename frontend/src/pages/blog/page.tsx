@@ -1,12 +1,13 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { onTourImageError } from "@/lib/imageFallback";
 
 const posts = [
   {
     slug: "mejores-tours-la-paz",
     title: "Los 10 mejores tours en La Paz que no puedes perderte",
     excerpt: "Descubre las experiencias más impresionantes que La Paz tiene para ofrecer, desde snorkel con lobos marinos hasta kayak en Isla Espíritu Santo.",
-    image: "https://readdy.ai/api/search-image?query=Beautiful%20aerial%20view%20of%20La%20Paz%20bay%20in%20Baja%20California%20Sur%20Mexico%20with%20turquoise%20water%2C%20small%20boats%20and%20desert%20mountains%20in%20the%20background%2C%20golden%20hour%20travel%20photography%2C%20no%20text&width=800&height=500&seq=70&orientation=landscape",
+    image: "https://images.unsplash.com/photo-1505228395891-9a51e7e86bf6?w=1200&q=80&auto=format&fit=crop",
     date: "2026-05-10",
     readTime: "5 min",
     category: "Destinos",
@@ -15,7 +16,7 @@ const posts = [
     slug: "guia-whale-watching",
     title: "Guía completa de avistamiento de ballenas en Baja",
     excerpt: "Todo lo que necesitas saber para vivir la experiencia de avistar ballenas grises en el Mar de Cortés durante la temporada.",
-    image: "https://readdy.ai/api/search-image?query=Majestic%20gray%20whale%20breaching%20near%20a%20small%20panga%20boat%20in%20the%20Sea%20of%20Cortez%20Baja%20California%20Sur%20Mexico%20with%20dramatic%20splash%20and%20blue%20ocean%2C%20wildlife%20photography%2C%20no%20text&width=800&height=500&seq=71&orientation=landscape",
+    image: "https://images.unsplash.com/photo-1568430462989-44163eb1752f?w=1200&q=80&auto=format&fit=crop",
     date: "2026-04-28",
     readTime: "7 min",
     category: "Naturaleza",
@@ -24,7 +25,7 @@ const posts = [
     slug: "gastronomia-baja",
     title: "La gastronomía de Baja California Sur: una joya escondida",
     excerpt: "De los tacos de pescado de Ensenada a la alta cocina de La Paz, explora los sabores que hacen única a esta región.",
-    image: "https://readdy.ai/api/search-image?query=Delicious%20Mexican%20seafood%20tacos%20with%20fresh%20fish%2C%20lime%2C%20cilantro%20and%20salsa%20on%20rustic%20wooden%20table%20in%20Baja%20California%20Sur%2C%20warm%20food%20photography%20with%20vibrant%20colors%2C%20no%20text&width=800&height=500&seq=72&orientation=landscape",
+    image: "https://images.unsplash.com/photo-1565299543923-37dd37887442?w=1200&q=80&auto=format&fit=crop",
     date: "2026-04-15",
     readTime: "6 min",
     category: "Gastronomía",
@@ -33,7 +34,7 @@ const posts = [
     slug: "consejos-primeriza-baja",
     title: "Consejos para viajeros primerizos en Baja California Sur",
     excerpt: "Desde qué empacar hasta cómo moverte entre ciudades: todo lo que necesitas para tu primera visita a Baja.",
-    image: "https://readdy.ai/api/search-image?query=Scenic%20desert%20highway%20in%20Baja%20California%20Sur%20Mexico%20with%20cacti%20on%20both%20sides%2C%20clear%20blue%20sky%20and%20distant%20mountains%2C%20road%20trip%20travel%20photography%2C%20warm%20golden%20light%2C%20no%20text&width=800&height=500&seq=73&orientation=landscape",
+    image: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&q=80&auto=format&fit=crop",
     date: "2026-03-30",
     readTime: "8 min",
     category: "Consejos",
@@ -42,7 +43,7 @@ const posts = [
     slug: "pesca-deportiva-cabo",
     title: "Pesca deportiva en Cabo: el paraíso del pescador",
     excerpt: "Por qué Cabo San Lucas es conocido mundialmente como la capital de la pesca deportiva y cómo planificar tu aventura.",
-    image: "https://readdy.ai/api/search-image?query=Sport%20fishing%20boat%20on%20deep%20blue%20ocean%20with%20anglers%20holding%20large%20marlin%20catch%20in%20Cabo%20San%20Lucas%2C%20dramatic%20sports%20photography%20with%20clear%20sky%2C%20no%20text&width=800&height=500&seq=74&orientation=landscape",
+    image: "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=1200&q=80&auto=format&fit=crop",
     date: "2026-03-12",
     readTime: "5 min",
     category: "Aventura",
@@ -51,7 +52,7 @@ const posts = [
     slug: "renta-casas-playa",
     title: "Las mejores casas frente al mar para rentar en Baja",
     excerpt: "Una selección de las propiedades más espectaculares para tus vacaciones, desde Todos Santos hasta Los Cabos.",
-    image: "https://readdy.ai/api/search-image?query=Luxury%20beachfront%20vacation%20rental%20house%20with%20infinity%20pool%20overlooking%20the%20Pacific%20Ocean%20in%20Baja%20California%20Sur%20Mexico%20at%20sunset%2C%20modern%20architecture%2C%20vacation%20rental%20photography%2C%20no%20text&width=800&height=500&seq=75&orientation=landscape",
+    image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200&q=80&auto=format&fit=crop",
     date: "2026-02-20",
     readTime: "6 min",
     category: "Hospedaje",
@@ -79,6 +80,7 @@ export default function BlogPage() {
                   <img
                     src={posts[0].image}
                     alt={posts[0].title}
+                    onError={onTourImageError}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                 </div>
@@ -109,6 +111,7 @@ export default function BlogPage() {
                     <img
                       src={post.image}
                       alt={post.title}
+                      onError={onTourImageError}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   </div>

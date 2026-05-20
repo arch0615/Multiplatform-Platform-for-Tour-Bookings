@@ -4,9 +4,7 @@ import { Link } from "react-router-dom";
 import ProviderSidebar from "../components/ProviderSidebar";
 import { ApiError } from "@/lib/api";
 import { archiveMyTour, listMyTours, TourStatus, type ProviderTour } from "@/lib/providerTours";
-
-const placeholderImage =
-  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80&auto=format&fit=crop";
+import { TOUR_IMAGE_PLACEHOLDER, onTourImageError } from "@/lib/imageFallback";
 
 type StatusFilter = "all" | "active" | "paused" | "archived";
 
@@ -17,7 +15,7 @@ function statusBadge(s: TourStatus): string {
 }
 
 export default function ProviderProducts() {
-  const { t, i18n } = useTranslation("provider");
+  const { t, i18n } = useTranslation(["provider", "admin"]);
   const priceLocale = i18n.language === "es" ? "es-MX" : "en-US";
 
   const [tours, setTours] = useState<ProviderTour[]>([]);
@@ -79,7 +77,7 @@ export default function ProviderProducts() {
   return (
     <div className="min-h-screen bg-offwhite pt-14 md:pt-20 pb-12">
       <div className="w-full px-4 md:px-8 lg:px-12">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
             <ProviderSidebar />
 
@@ -110,7 +108,7 @@ export default function ProviderProducts() {
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder={t("admin.search")}
+                    placeholder={t("admin:admin.search")}
                     className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-ocean"
                   />
                 </div>
@@ -124,10 +122,10 @@ export default function ProviderProducts() {
                       }`}
                     >
                       {s === "all"
-                        ? t("admin.all")
+                        ? t("admin:admin.all")
                         : s === "active" ? t("provider.active")
                         : s === "paused" ? t("provider.paused")
-                        : t("provider.archived", { defaultValue: "Archivado" })}
+                        : t("provider.archived")}
                     </button>
                   ))}
                 </div>
@@ -162,10 +160,16 @@ export default function ProviderProducts() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {filtered.map((tour) => {
-                    const cover = tour.imageUrls[0] ?? placeholderImage;
+                    const cover = tour.imageUrls[0] ?? TOUR_IMAGE_PLACEHOLDER;
                     return (
-                      <div key={tour.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col sm:flex-row">
-                        <img src={cover} alt={tour.title} loading="lazy" className="w-full sm:w-40 h-40 sm:h-auto object-cover shrink-0" />
+                      <div key={tour.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col sm:flex-row sm:h-44">
+                        <img
+                          src={cover}
+                          alt={tour.title}
+                          loading="lazy"
+                          onError={onTourImageError}
+                          className="w-full sm:w-40 h-40 sm:h-full object-cover shrink-0"
+                        />
                         <div className="p-4 flex-1 flex flex-col">
                           <div className="flex items-start justify-between gap-2 mb-2">
                             <h3 className="text-sm font-semibold text-charcoal line-clamp-2">{tour.title}</h3>

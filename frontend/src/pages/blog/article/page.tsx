@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, Link } from "react-router-dom";
+import { onTourImageError } from "@/lib/imageFallback";
 
 const postData: Record<string, { title: string; date: string; readTime: string; category: string; image: string; content: string[] }> = {
   "mejores-tours-la-paz": {
@@ -8,7 +9,7 @@ const postData: Record<string, { title: string; date: string; readTime: string; 
     date: "2026-05-10",
     readTime: "5 min",
     category: "Destinos",
-    image: "https://readdy.ai/api/search-image?query=Beautiful%20aerial%20view%20of%20La%20Paz%20bay%20in%20Baja%20California%20Sur%20Mexico%20with%20turquoise%20water%2C%20small%20boats%20and%20desert%20mountains%20in%20the%20background%2C%20golden%20hour%20travel%20photography%2C%20no%20text&width=900&height=500&seq=70&orientation=landscape",
+    image: "https://images.unsplash.com/photo-1505228395891-9a51e7e86bf6?w=1600&q=80&auto=format&fit=crop",
     content: ["blog.p1", "blog.p2", "blog.p3", "blog.p4", "blog.p5"],
   },
   "guia-whale-watching": {
@@ -16,7 +17,7 @@ const postData: Record<string, { title: string; date: string; readTime: string; 
     date: "2026-04-28",
     readTime: "7 min",
     category: "Naturaleza",
-    image: "https://readdy.ai/api/search-image?query=Majestic%20gray%20whale%20breaching%20near%20a%20small%20panga%20boat%20in%20the%20Sea%20of%20Cortez%20Baja%20California%20Sur%20Mexico%20with%20dramatic%20splash%20and%20blue%20ocean%2C%20wildlife%20photography%2C%20no%20text&width=900&height=500&seq=71&orientation=landscape",
+    image: "https://images.unsplash.com/photo-1568430462989-44163eb1752f?w=1600&q=80&auto=format&fit=crop",
     content: ["blog.w1", "blog.w2", "blog.w3", "blog.w4"],
   },
   "gastronomia-baja": {
@@ -24,7 +25,7 @@ const postData: Record<string, { title: string; date: string; readTime: string; 
     date: "2026-04-15",
     readTime: "6 min",
     category: "Gastronomía",
-    image: "https://readdy.ai/api/search-image?query=Delicious%20Mexican%20seafood%20tacos%20with%20fresh%20fish%2C%20lime%2C%20cilantro%20and%20salsa%20on%20rustic%20wooden%20table%20in%20Baja%20California%20Sur%2C%20warm%20food%20photography%20with%20vibrant%20colors%2C%20no%20text&width=900&height=500&seq=72&orientation=landscape",
+    image: "https://images.unsplash.com/photo-1565299543923-37dd37887442?w=1600&q=80&auto=format&fit=crop",
     content: ["blog.g1", "blog.g2", "blog.g3"],
   },
   "consejos-primeriza-baja": {
@@ -32,7 +33,7 @@ const postData: Record<string, { title: string; date: string; readTime: string; 
     date: "2026-03-30",
     readTime: "8 min",
     category: "Consejos",
-    image: "https://readdy.ai/api/search-image?query=Scenic%20desert%20highway%20in%20Baja%20California%20Sur%20Mexico%20with%20cacti%20on%20both%20sides%2C%20clear%20blue%20sky%20and%20distant%20mountains%2C%20road%20trip%20travel%20photography%2C%20warm%20golden%20light%2C%20no%20text&width=900&height=500&seq=73&orientation=landscape",
+    image: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1600&q=80&auto=format&fit=crop",
     content: ["blog.c1", "blog.c2", "blog.c3", "blog.c4"],
   },
   "pesca-deportiva-cabo": {
@@ -40,7 +41,7 @@ const postData: Record<string, { title: string; date: string; readTime: string; 
     date: "2026-03-12",
     readTime: "5 min",
     category: "Aventura",
-    image: "https://readdy.ai/api/search-image?query=Sport%20fishing%20boat%20on%20deep%20blue%20ocean%20with%20anglers%20holding%20large%20marlin%20catch%20in%20Cabo%20San%20Lucas%2C%20dramatic%20sports%20photography%20with%20clear%20sky%2C%20no%20text&width=900&height=500&seq=74&orientation=landscape",
+    image: "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=1600&q=80&auto=format&fit=crop",
     content: ["blog.f1", "blog.f2", "blog.f3"],
   },
   "renta-casas-playa": {
@@ -48,7 +49,7 @@ const postData: Record<string, { title: string; date: string; readTime: string; 
     date: "2026-02-20",
     readTime: "6 min",
     category: "Hospedaje",
-    image: "https://readdy.ai/api/search-image?query=Luxury%20beachfront%20vacation%20rental%20house%20with%20infinity%20pool%20overlooking%20the%20Pacific%20Ocean%20in%20Baja%20California%20Sur%20Mexico%20at%20sunset%2C%20modern%20architecture%2C%20vacation%20rental%20photography%2C%20no%20text&width=900&height=500&seq=75&orientation=landscape",
+    image: "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1600&q=80&auto=format&fit=crop",
     content: ["blog.h1", "blog.h2", "blog.h3"],
   },
 };
@@ -97,7 +98,7 @@ export default function BlogArticlePage() {
           </div>
 
           <div className="rounded-2xl overflow-hidden h-64 md:h-80 mb-8">
-            <img src={post.image} alt={post.title} className="w-full h-full object-cover" />
+            <img src={post.image} alt={post.title} onError={onTourImageError} className="w-full h-full object-cover" />
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 p-6 md:p-8 space-y-5">

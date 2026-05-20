@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { destinations } from "@/mocks/destinations";
+import { onTourImageError } from "@/lib/imageFallback";
 
 export default function DestinationsSection() {
   const { t } = useTranslation("home");
@@ -22,6 +23,7 @@ export default function DestinationsSection() {
               <img
                 src={dest.image}
                 alt={dest.name}
+                onError={onTourImageError}
                 className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />

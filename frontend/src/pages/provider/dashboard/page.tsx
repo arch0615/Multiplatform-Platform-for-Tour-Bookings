@@ -100,18 +100,25 @@ export default function ProviderDashboard() {
   const chartBars = useMemo(() => {
     if (!earnings || earnings.monthly.length === 0) return [];
     const max = Math.max(...earnings.monthly.map((m) => m.net), 1);
-    return earnings.monthly.map((m) => ({
-      label: m.label,
-      heightPct: Math.round((m.net / max) * 100),
-      net: m.net,
-      bookings: m.bookings,
-    }));
-  }, [earnings]);
+    // The backend's `m.label` is always Spanish ("may 2026"). Format from yearMonth so
+    // the user's UI language controls the abbreviation.
+    const fmt = new Intl.DateTimeFormat(priceLocale, { month: "short" });
+    return earnings.monthly.map((m) => {
+      const [y, mo] = m.yearMonth.split("-");
+      const monthLabel = fmt.format(new Date(Number(y), Number(mo) - 1, 1));
+      return {
+        label: monthLabel,
+        heightPct: Math.round((m.net / max) * 100),
+        net: m.net,
+        bookings: m.bookings,
+      };
+    });
+  }, [earnings, priceLocale]);
 
   return (
     <div className="min-h-screen bg-offwhite pt-14 md:pt-20 pb-12">
       <div className="w-full px-4 md:px-8 lg:px-12">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
             <ProviderSidebar />
 
@@ -226,12 +233,12 @@ export default function ProviderDashboard() {
                 ) : (
                   <div className="h-48 flex items-end gap-2">
                     {chartBars.map((bar, i) => (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1 group" title={`${bar.label} · $${bar.net.toLocaleString(priceLocale)} · ${bar.bookings} reservas`}>
+                      <div key={i} className="flex-1 h-full flex flex-col items-center justify-end gap-1 group" title={`${bar.label} · $${bar.net.toLocaleString(priceLocale)} · ${bar.bookings} ${t("provider:provider.bookings").toLowerCase()}`}>
                         <div
                           className="w-full bg-ocean/20 group-hover:bg-ocean/50 rounded-t-lg transition-colors"
                           style={{ height: `${Math.max(bar.heightPct, 2)}%` }}
                         />
-                        <span className="text-[10px] text-gray-400 truncate w-full text-center">{bar.label.split(" ")[0]}</span>
+                        <span className="text-[10px] text-gray-400 truncate w-full text-center shrink-0">{bar.label}</span>
                       </div>
                     ))}
                   </div>
@@ -263,12 +270,12 @@ export default function ProviderDashboard() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-gray-100">
-                          <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">Ref</th>
-                          <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">Cliente</th>
-                          <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">Tour</th>
-                          <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">Fecha</th>
-                          <th className="text-right text-xs font-medium text-gray-400 py-3 pr-4">Total</th>
-                          <th className="text-left text-xs font-medium text-gray-400 py-3">Estado</th>
+                          <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">{t("provider:provider.colRef")}</th>
+                          <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">{t("provider:provider.colClient")}</th>
+                          <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">{t("provider:provider.colTour")}</th>
+                          <th className="text-left text-xs font-medium text-gray-400 py-3 pr-4">{t("provider:provider.colDate")}</th>
+                          <th className="text-right text-xs font-medium text-gray-400 py-3 pr-4">{t("provider:provider.colTotal")}</th>
+                          <th className="text-left text-xs font-medium text-gray-400 py-3">{t("provider:provider.colStatus")}</th>
                         </tr>
                       </thead>
                       <tbody>

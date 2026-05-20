@@ -22,7 +22,7 @@ export default function ProveedorConfiguracionPage() {
   return (
     <div className="min-h-screen bg-offwhite pt-14 md:pt-20 pb-12">
       <div className="w-full px-4 md:px-8 lg:px-12">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
             <ProviderSidebar />
             <div className="flex-1 min-w-0 space-y-6">

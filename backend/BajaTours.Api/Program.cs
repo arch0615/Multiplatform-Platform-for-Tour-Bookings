@@ -183,6 +183,23 @@ builder.Services.AddRateLimiter(rl =>
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHttpContextAccessor();
+
+// Honor Accept-Language so locale-sensitive output (chart month labels, etc.)
+// matches the caller's UI language instead of a hardcoded culture.
+builder.Services.Configure<Microsoft.AspNetCore.Builder.RequestLocalizationOptions>(opts =>
+{
+    var supported = new[]
+    {
+        new System.Globalization.CultureInfo("es-MX"),
+        new System.Globalization.CultureInfo("en-US"),
+    };
+    opts.DefaultRequestCulture = new Microsoft.AspNetCore.Localization.RequestCulture("es-MX");
+    opts.SupportedCultures = supported;
+    opts.SupportedUICultures = supported;
+    // Accept-Language uses "es", "en", "es-MX", "en-US" etc. The default providers
+    // (Query → Cookie → AcceptLanguageHeader) handle them in that order.
+});
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "Baja Tours API", Version = "v1" });
@@ -217,6 +234,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors(CorsPolicy);
+app.UseRequestLocalization();
 
 // Serve uploaded files at /uploads/<filename>
 var storageSection = app.Configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>() ?? new StorageOptions();
